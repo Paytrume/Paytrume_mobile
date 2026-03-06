@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { theme } from '../../theme';
 import { Text } from '../typography/Text';
 
@@ -9,17 +9,30 @@ interface Props {
   style?: ViewStyle;
   variant?: 'primary' | 'secondary';
   textColor?: string;
+  disabled?: boolean;
+  loading?: boolean;
 }
 
-export const Button: React.FC<Props> = ({ title, onPress, style, variant = 'primary', textColor }) => {
-  const backgroundColor = variant === 'secondary' ? theme.colors.button.primaryWithOpacity15 : theme.colors.primary;
+export const Button: React.FC<Props> = ({ title, onPress, style, variant = 'primary', textColor, disabled = false, loading = false }) => {
+  const backgroundColor = disabled ? theme.colors.background.tertiary : variant === 'secondary' ? theme.colors.background.tertiary : theme.colors.primary;
+
   const finalTextColor = textColor || (variant === 'secondary' ? theme.colors.text.primary : '#fff');
 
+  const handlePress = () => {
+    if (!disabled && !loading) {
+      onPress();
+    }
+  };
+
   return (
-    <TouchableOpacity style={[styles.button, { backgroundColor }, style]} onPress={onPress}>
-      <Text color={finalTextColor} style={styles.text}>
-        {title}
-      </Text>
+    <TouchableOpacity style={[styles.button, { backgroundColor }, style]} onPress={handlePress} disabled={disabled || loading} accessibilityState={{ disabled: disabled || loading }}>
+      {loading ? (
+        <ActivityIndicator color={finalTextColor} size='small' />
+      ) : (
+        <Text color={finalTextColor} style={styles.text}>
+          {title}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 };
