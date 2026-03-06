@@ -41,6 +41,17 @@ This command will move the starter code to the **app-example** directory and cre
 - If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
 - Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
 
+## Fonts
+
+This project loads custom fonts at startup using `expo-font`. A sample font loading
+implementation lives in `App.tsx`. To add new fonts:
+
+1. Create `assets/fonts` (already exists in this repo).
+2. Drop your `.ttf`/`.otf` files in that folder (e.g. Plus Jakarta Sans variants).
+3. Update the font mapping in `App.tsx` under `useFonts` if you add new names.
+
+The `assets/fonts/README.md` contains more details.
+
 ## Learn more
 
 To learn more about developing your project with Expo, look at the following resources:

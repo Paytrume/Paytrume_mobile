@@ -17,9 +17,9 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-interface LoginFormProps {}
+// no props needed for LoginForm
 
-export const LoginForm: React.FC<LoginFormProps> = () => {
+export const LoginForm: React.FC = () => {
   const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +27,7 @@ export const LoginForm: React.FC<LoginFormProps> = () => {
   const {
     control,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { isValid },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     mode: 'onBlur',
@@ -46,7 +46,7 @@ export const LoginForm: React.FC<LoginFormProps> = () => {
 
       // On success, navigate to home
       Alert.alert('Success', 'Logged in successfully!', [{ text: 'OK', onPress: () => router.push('/(home)') }]);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to sign in. Please try again.');
     } finally {
       setIsLoading(false);
@@ -58,8 +58,7 @@ export const LoginForm: React.FC<LoginFormProps> = () => {
   };
 
   const handleForgotPasswordPress = () => {
-    // Open forgot password modal or navigate to reset password screen
-    Alert.alert('Forgot Password', 'Password reset functionality would be displayed here.');
+    router.push('/(auth)/forgot-password');
   };
 
   return (

@@ -34,3 +34,8 @@ export const validatePassword = (password: string): boolean => {
 export const validateFullName = (name: string): boolean => {
   return name.length >= 2 && name.length <= 50;
 };
+
+export const validateOtp = (code: string): boolean => {
+  const otpRegex = /^\d{6}$/;
+  return otpRegex.test(code);
+};
