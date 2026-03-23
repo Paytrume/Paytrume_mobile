@@ -6,7 +6,7 @@ import { Text } from '../typography/Text';
 interface Props {
   title: string;
   onPress: () => void;
-  style?: ViewStyle;
+  style?: ViewStyle | ViewStyle[];
   variant?: 'primary' | 'secondary';
   textColor?: string;
   disabled?: boolean;

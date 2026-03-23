@@ -186,7 +186,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = () => {
           </TouchableOpacity>
 
           <Text variant='small' color={theme.colors.text.tertiary} style={styles.termsText}>
-            By clicking 'Sign up' I agree to PayTruMe's{' '}
+            By clicking &apos;Sign up&apos; I agree to PayTruMe&apos;s{' '}
             <Text variant='small' color={theme.colors.primary} onPress={handleTermsPress}>
               Terms & Conditions
             </Text>{' '}

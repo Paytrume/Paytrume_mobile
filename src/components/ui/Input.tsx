@@ -1,6 +1,6 @@
 import * as Icons from 'lucide-react-native';
 import React from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { theme } from '../../theme';
 import { Text } from '../typography/Text';
@@ -11,7 +11,7 @@ interface InputProps {
   onChangeText: (text: string) => void;
   placeholder?: string;
   secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'phone-pad';
+  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric' | 'decimal-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words';
   error?: string;
   touched?: boolean;
@@ -20,6 +20,11 @@ interface InputProps {
   showPasswordToggle?: boolean;
   onPasswordToggle?: () => void;
   isPasswordVisible?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
+  style?: ViewStyle;
+  textAlignVertical?: 'auto' | 'top' | 'bottom' | 'center';
+  autoCorrect?: boolean
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -37,6 +42,10 @@ export const Input: React.FC<InputProps> = ({
   showPasswordToggle = false,
   onPasswordToggle,
   isPasswordVisible = false,
+  multiline = false,
+  numberOfLines,
+  style,
+  textAlignVertical = multiline ? 'top' : 'center',
 }) => {
   const isFocused = useSharedValue(0);
   const hasError = useSharedValue(error ? 1 : 0);
@@ -78,7 +87,10 @@ export const Input: React.FC<InputProps> = ({
 
       <Animated.View style={[styles.inputContainer, animatedStyles]}>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            multiline && styles.multilineInput, // Add multiline style
+          ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -130,7 +142,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: theme.colors.text.primary,
-    paddingVertical: 0, // Remove default padding to align with container
+    paddingVertical: 0,
+  },
+  multilineInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  inputWithRightIcon: {
+    paddingRight: 48,
   },
   iconContainer: {
     padding: 4,

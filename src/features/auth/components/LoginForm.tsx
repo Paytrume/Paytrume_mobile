@@ -45,7 +45,7 @@ export const LoginForm: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // On success, navigate to home
-      Alert.alert('Success', 'Logged in successfully!', [{ text: 'OK', onPress: () => router.push('/(home)') }]);
+      Alert.alert('Success', 'Logged in successfully!', [{ text: 'OK', onPress: () => router.push('/(tabs)') }]);
     } catch {
       Alert.alert('Error', 'Failed to sign in. Please try again.');
     } finally {
