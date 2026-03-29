@@ -35,8 +35,8 @@ export const colors = {
     secondary: '#F2F2F2',
     tertiary: '#E6E6E6',
     card: '#FFFFFF',
-    modal: '#FFFFFF',
     inverse: '#090814',
+    modal: '#F6F2EE',
   },
 
   text: {

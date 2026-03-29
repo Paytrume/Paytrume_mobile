@@ -1,9 +1,9 @@
 // src/app/link-details.tsx
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useRouter } from 'expo-router';
-import { Copy, Share2, ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, CircleCheck, Copy, Mail, Share2 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { SafeAreaView, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../components/typography/Text';
 import { Button } from '../components/ui/Button';
 import { theme } from '../theme';
@@ -15,6 +15,8 @@ export default function LinkDetailsScreen() {
   const router = useRouter();
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showResendLinkModal, setShowResendLinkModal] = useState(false);
+  const [showTrackModal, setShowTrackModal] = useState(false);
 
   // Mock data
   const linkData = {
@@ -42,6 +44,84 @@ export default function LinkDetailsScreen() {
   const handleShare = () => {
     router.push('/share-link');
   };
+
+  const handleResendLink = () => {
+    setShowResendLinkModal(true);
+  };
+
+  const handleCloseResendLink = () => {
+    setShowResendLinkModal(false);
+  };
+
+  const handleTrack = () => {
+    setShowTrackModal(true);
+  };
+
+  const handleCloseTrack = () => {
+    setShowTrackModal(true);
+  };
+
+  const renderSuccessResendLinkModal = () => (
+    <Modal visible={showResendLinkModal} transparent animationType='slide' onRequestClose={handleCloseResendLink}>
+      <Pressable style={styles.modalOverlay} onPress={handleCloseResendLink}>
+        <View style={styles.resendModal}>
+          <View style={[styles.successIconContainer, { backgroundColor: `${theme.colors.state.success}15` }]}>
+            <CircleCheck size={50} color={theme.colors.primary} />
+          </View>
+          <Text variant='h2' style={styles.resendTitle}>
+            Product link sent!
+          </Text>
+          <Text variant='body' color={theme.colors.text.secondary} style={styles.resendMessage}>
+            Your payment link has been sent to chukwuvidera@gmail.com{' '}
+          </Text>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+
+  const renderTrackDeliveryModal = () => (
+    <Modal visible={showTrackModal} transparent animationType='slide' onRequestClose={handleCloseTrack}>
+      <Pressable style={styles.modalOverlay} onPress={handleCloseTrack}>
+        <View style={styles.resendModal}>
+          <Text variant='h2' style={styles.resendTitle}>
+            Track delivery of product
+          </Text>
+          <View style={styles.trackList}>
+            <Text variant='small' color={theme.colors.text.secondary} style={styles.resendMessage}>
+              Product link created and shared
+            </Text>
+            <Text variant='small' style={styles.resendMessage}>
+              COMPLETE
+            </Text>
+          </View>
+          <View style={styles.trackList}>
+            <Text variant='small' color={theme.colors.text.secondary} style={styles.resendMessage}>
+              Picked up by courier
+            </Text>
+            <Text variant='small' style={styles.resendMessage}>
+              COMPLETE
+            </Text>
+          </View>
+          <View style={styles.trackList}>
+            <Text variant='small' color={theme.colors.text.secondary} style={styles.resendMessage}>
+              In transit to destination
+            </Text>
+            <Text variant='small' style={styles.resendMessage}>
+              COMPLETE
+            </Text>
+          </View>
+          <View style={styles.trackList}>
+            <Text variant='small' color={theme.colors.text.secondary} style={styles.resendMessage}>
+              Product Delivered
+            </Text>
+            <Text variant='small' style={styles.resendMessage}>
+              COMPLETE
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -81,7 +161,7 @@ export default function LinkDetailsScreen() {
         <Text variant='body' color={theme.colors.text.secondary} style={styles.description}>
           {linkData.description}
         </Text>
-        
+
         {/* Date and Customer */}
         <View style={styles.infoSection}>
           <View style={styles.infoContent}>
@@ -157,8 +237,12 @@ export default function LinkDetailsScreen() {
 
       {/* Done Button - Fixed at bottom */}
       <View style={styles.footer}>
-        <Button title='Done' onPress={() => router.back()} style={styles.doneButton} />
+        <Button title='Resend link' onPress={handleResendLink} textColor={theme.colors.primary} style={styles.resend} icon={Mail} />
+        <Button title='Track delivery' onPress={handleTrack} style={styles.doneButton} />
       </View>
+
+      {renderSuccessResendLinkModal()}
+      {renderTrackDeliveryModal()}
     </SafeAreaView>
   );
 }
@@ -283,9 +367,19 @@ const styles = StyleSheet.create({
     paddingBottom: 34,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.light,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  resend: {
+    flex: 1,
+    marginRight: 5,
+    backgroundColor: theme.colors.background.primary,
+    borderColor: theme.colors.primary,
+    borderWidth: 1,
   },
   doneButton: {
-    width: '100%',
+    flex: 1,
+    marginLeft: 5,
   },
   bottomPadding: {
     height: 40,
@@ -294,4 +388,56 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   headBg: { backgroundColor: `${theme.colors.primary}15` },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+    // alignItems: 'stretch',
+  },
+  resendModal: {
+    backgroundColor: theme.colors.background.modal,
+    borderRadius: 20,
+    padding: 24,
+    // marginHorizontal: 24,
+    alignItems: 'center',
+    // width: '100%',
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: `${theme.colors.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  resendTitle: {
+    marginBottom: 40,
+    textAlign: 'center',
+  },
+  resendMessage: {
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  successIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignSelf: 'center',
+    // marginTop: 10,
+    marginBottom: 24,
+    padding: 16,
+  },
+  trackList: {
+    borderColor: theme.colors.primary,
+    borderBottomWidth: 0.5,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingTop: 20
+  },
 });

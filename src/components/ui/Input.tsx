@@ -4,6 +4,7 @@ import { StyleSheet, TextInput, TouchableOpacity, View, ViewStyle } from 'react-
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { theme } from '../../theme';
 import { Text } from '../typography/Text';
+import { LucideIcon } from 'lucide-react-native';
 
 interface InputProps {
   label: string;
@@ -24,7 +25,11 @@ interface InputProps {
   numberOfLines?: number;
   style?: ViewStyle;
   textAlignVertical?: 'auto' | 'top' | 'bottom' | 'center';
-  autoCorrect?: boolean
+  autoCorrect?: boolean;
+
+  // ✅ NEW
+  leftIcon?: LucideIcon;
+  rightIcon?: LucideIcon;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -46,6 +51,8 @@ export const Input: React.FC<InputProps> = ({
   numberOfLines,
   style,
   textAlignVertical = multiline ? 'top' : 'center',
+  leftIcon: LeftIcon,
+  rightIcon: RightIcon,
 }) => {
   const isFocused = useSharedValue(0);
   const hasError = useSharedValue(error ? 1 : 0);
@@ -62,7 +69,7 @@ export const Input: React.FC<InputProps> = ({
 
   React.useEffect(() => {
     hasError.value = withTiming(error ? 1 : 0, { duration: 200 });
-  }, [error, hasError]);
+  }, [error]);
 
   const animatedStyles = useAnimatedStyle(() => {
     const borderColor = interpolateColor(isFocused.value, [0, 1], [theme.colors.border.medium, theme.colors.primary]);
@@ -81,16 +88,22 @@ export const Input: React.FC<InputProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text variant='body' style={styles.label}>
-        {label}
-      </Text>
+      {!!label && (
+        <Text variant='body' style={styles.label}>
+          {label}
+        </Text>
+      )}
 
-      <Animated.View style={[styles.inputContainer, animatedStyles]}>
+      <Animated.View style={[styles.inputContainer, animatedStyles, style]}>
+        {/* ✅ LEFT ICON */}
+        {LeftIcon && (
+          <View style={styles.leftIcon}>
+            <LeftIcon size={20} color={theme.colors.text.secondary} />
+          </View>
+        )}
+
         <TextInput
-          style={[
-            styles.input,
-            multiline && styles.multilineInput, // Add multiline style
-          ]}
+          style={[styles.input, multiline && styles.multilineInput]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -100,14 +113,22 @@ export const Input: React.FC<InputProps> = ({
           autoCapitalize={autoCapitalize}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          textAlignVertical={textAlignVertical}
           accessibilityLabel={label}
           accessibilityHint={placeholder}
         />
 
-        {showPasswordToggle && (
-          <TouchableOpacity onPress={onPasswordToggle} style={styles.iconContainer} accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}>
+        {/* ✅ PASSWORD TOGGLE OR RIGHT ICON */}
+        {showPasswordToggle ? (
+          <TouchableOpacity onPress={onPasswordToggle} style={styles.iconContainer}>
             {isPasswordVisible ? <Icons.EyeOff size={20} color={theme.colors.text.secondary} /> : <Icons.Eye size={20} color={theme.colors.text.secondary} />}
           </TouchableOpacity>
+        ) : (
+          RightIcon && (
+            <View style={styles.iconContainer}>
+              <RightIcon size={20} color={theme.colors.text.secondary} />
+            </View>
+          )
         )}
       </Animated.View>
 
@@ -133,7 +154,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 8, // slightly nicer for search
     backgroundColor: theme.colors.background.primary,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -150,12 +171,12 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 8,
   },
-  inputWithRightIcon: {
-    paddingRight: 48,
+  leftIcon: {
+    marginRight: 8,
   },
   iconContainer: {
-    padding: 4,
     marginLeft: 8,
+    padding: 4,
   },
   errorText: {
     marginTop: 4,

@@ -1,21 +1,28 @@
 // src/app/(tabs)/profile.tsx
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Text } from '../../components/typography/Text';
+import { SafeAreaView, StyleSheet } from 'react-native';
+import { ProfileScreen } from '../../features/profile/components/ProfileScreen';
+import { theme } from '../../theme';
+import { Stack } from 'expo-router';
 
-export default function ProfileScreen() {
+export default function ProfileTabScreen() {
   return (
-    <Screen style={styles.container}>
-      <Text variant='h2'>Profile</Text>
-    </Screen>
+    <SafeAreaView style={styles.container}>
+      {/* <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTitle: 'Profile',
+          headerTintColor: theme.colors.primary,
+        }}
+      /> */}
+      <ProfileScreen />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: theme.colors.background.primary,
   },
 });
