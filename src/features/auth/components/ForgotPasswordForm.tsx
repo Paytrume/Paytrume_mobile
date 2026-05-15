@@ -12,7 +12,7 @@ import { usePasswordReset } from '../usePasswordReset';
 
 export const ForgotPasswordForm: React.FC = () => {
   const router = useRouter();
-  const { sendEmail, isLoadingEmail } = usePasswordReset();
+  const { sendEmail, isLoadingEmail, error } = usePasswordReset();
 
   const {
     control,
@@ -62,6 +62,11 @@ export const ForgotPasswordForm: React.FC = () => {
 
         <View style={styles.buttonContainer}>
           <Button title={isLoadingEmail ? 'Sending...' : 'Send'} onPress={handleSubmit(onSubmit)} style={styles.sendButton} disabled={!isValid || isLoadingEmail} loading={isLoadingEmail} />
+          {error && (
+            <Text variant='small' color={theme.colors.state.error} style={styles.errorMessage}>
+              {error}
+            </Text>
+          )}
         </View>
 
         <View style={styles.footerContainer}>
@@ -105,6 +110,10 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     width: '100%',
+  },
+  errorMessage: {
+    marginTop: 12,
+    textAlign: 'center',
   },
   footerContainer: {
     alignItems: 'center',

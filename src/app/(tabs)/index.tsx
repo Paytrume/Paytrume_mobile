@@ -1,11 +1,14 @@
 // src/app/(tabs)/index.tsx
+import { useCustomersStore } from '@/store/customers.store';
 import { useRouter } from 'expo-router';
 import { ArrowUpRight, Bell, CheckCircle, CircleQuestionMark, Clock4, Inbox, Plus, Share2, ShieldCheck, Wallet } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { Extrapolate, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Text } from '../../components/typography/Text';
 import { Screen } from '../../components/ui/Screen';
+import { useAuthStore } from '../../store/auth.store';
+import { useProductsStore } from '../../store/products.store';
 import { theme } from '../../theme';
 
 //images
@@ -25,65 +28,32 @@ interface BalanceCard {
   color: string;
 }
 
-interface RecentLink {
-  id: string;
-  title: string;
-  description: string;
-  amount: string;
-  status: 'in_escrow' | 'awaiting_pay' | 'completed';
-  date?: string;
-}
-
-const balanceCards: BalanceCard[] = [
-  {
-    id: '1',
-    title: 'Available to Withdraw',
-    amount: '$2,450.00',
-    subtitle: 'Withdraw funds →',
-    icon: <Wallet size={24} color={theme.colors.primary} />,
-    color: theme.colors.primary,
-  },
-  {
-    id: '2',
-    title: 'Securely in Ethereum',
-    amount: '$1,200',
-    subtitle: 'Awaiting delivery',
-    icon: <ArrowUpRight size={24} color='#10B981' />,
-    color: '#10B981',
-  },
-  {
-    id: '3',
-    title: 'Total Earnings',
-    amount: '$3,650',
-    subtitle: 'All time',
-    icon: <Wallet size={24} color='#8B5CF6' />,
-    color: '#8B5CF6',
-  },
-];
-
-const recentLinks: RecentLink[] = [
-  {
-    id: '1',
-    title: 'Web Design Service...',
-    description: 'Link sent to mark@exam...',
-    amount: 'N85,000.00',
-    status: 'in_escrow',
-  },
-  {
-    id: '2',
-    title: 'Vintage Camera...',
-    description: 'Link shared via What...',
-    amount: 'N350,000.50',
-    status: 'awaiting_pay',
-  },
-  {
-    id: '3',
-    title: 'Logo Design Pack',
-    description: 'Completed on Oct 12',
-    amount: 'N15,000.00',
-    status: 'completed',
-  },
-];
+// const balanceCards: BalanceCard[] = [
+//   {
+//     id: '1',
+//     title: 'Available to Withdraw',
+//     amount: '$2,450.00',
+//     subtitle: 'Withdraw funds →',
+//     icon: <Wallet size={24} color={theme.colors.primary} />,
+//     color: theme.colors.primary,
+//   },
+//   {
+//     id: '2',
+//     title: 'Securely in Ethereum',
+//     amount: '$1,200',
+//     subtitle: 'Awaiting delivery',
+//     icon: <ArrowUpRight size={24} color='#10B981' />,
+//     color: '#10B981',
+//   },
+//   {
+//     id: '3',
+//     title: 'Total Earnings',
+//     amount: '$3,650',
+//     subtitle: 'All time',
+//     icon: <Wallet size={24} color='#8B5CF6' />,
+//     color: '#8B5CF6',
+//   },
+// ];
 
 const statusFilters = ['All', 'Awaiting Pay', 'In Escrow', 'Completed'];
 
@@ -123,13 +93,35 @@ const BalanceCardItem: React.FC<{ item: BalanceCard; index: number; scrollX: any
 export default function HomeScreen() {
   const router = useRouter();
   const scrollX = useSharedValue(0);
+  const scrollY = useSharedValue(0);
+  const { user } = useAuthStore();
+  const { products, fetchProducts, loadMoreProducts, isLoading, hasNextPage } = useProductsStore();
+  const { userBalance, isLoading: balLoad, balanceCards } = useCustomersStore();
   const [activeFilter, setActiveFilter] = useState('All');
+
+  // Fetch products on mount
+  useEffect(() => {
+    console.log('hello')
+    fetchProducts(0);
+    userBalance();
+  }, []);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollX.value = event.contentOffset.x;
     },
   });
+
+  const handleScrollEndReached = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingOffset = 200; // Load more when user is 200px from bottom
+
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingOffset) {
+      if (hasNextPage && !isLoading) {
+        loadMoreProducts();
+      }
+    }
+  };
 
   const renderBalanceCard = ({ item, index }: { item: BalanceCard; index: number }) => <BalanceCardItem item={item} index={index} scrollX={scrollX} />;
 
@@ -181,7 +173,7 @@ export default function HomeScreen() {
     }
   };
 
-  const renderRecentLink = ({ item }: { item: RecentLink }, onPress: () => void) => (
+  const renderRecentLink = ({ item }: { item: any }, onPress: () => void) => (
     <TouchableOpacity style={styles.linkItem} onPress={onPress}>
       <View style={styles.linkLeft}>
         <View style={[styles.linkStatusIcon, { backgroundColor: getStatusColor(item.status, 'background') }]}>{getStatusIcon(item.status)}</View>
@@ -196,7 +188,7 @@ export default function HomeScreen() {
       </View>
       <View style={styles.linkRight}>
         <Text variant='body' style={styles.linkAmount}>
-          {item.amount}
+          ₦{parseInt(item.amount).toLocaleString()}
         </Text>
         <Text variant='small' style={[styles.linkStatus, { color: getStatusColor(item.status, 'text') }]}>
           {getStatusText(item.status)}
@@ -205,9 +197,11 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
+  console.log(typeof user)
+
   return (
     <Screen style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} onMomentumScrollEnd={handleScrollEndReached}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -215,7 +209,7 @@ export default function HomeScreen() {
               Welcome back,
             </Text>
             <Text variant='h2' style={styles.userName}>
-              Alex Palmer
+              {user?.includes('undefined') ? 'Buddy 😁': user}
             </Text>
           </View>
           <TouchableOpacity style={styles.searchButton}>
@@ -248,11 +242,13 @@ export default function HomeScreen() {
         {/* Recent Links Header */}
         <View style={styles.recentLinksHeader}>
           <Text variant='h2'>Recent Links</Text>
-          <TouchableOpacity>
-            <Text variant='body' color={theme.colors.primary}>
-              View All
-            </Text>
-          </TouchableOpacity>
+          {products.length > 10 && (
+            <TouchableOpacity>
+              <Text variant='body' color={theme.colors.primary}>
+                View All
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Status Filters */}
@@ -268,8 +264,17 @@ export default function HomeScreen() {
 
         {/* Recent Links List */}
         <View style={styles.linksList}>
-          {recentLinks.length > 0 ? (
-            recentLinks.map((link) => <View key={link.id}>{renderRecentLink({ item: link }, () => router.push('/share-link'))}</View>)
+          {products.length > 0 ? (
+            products.map((link) => (
+              <View key={link._id}>
+                {renderRecentLink({ item: link }, () =>
+                  router.push({
+                    pathname: '/share-link',
+                    params: { link: JSON.stringify(link) },
+                  }),
+                )}
+              </View>
+            ))
           ) : (
             <View style={styles.imageContainer}>
               <Image source={empty} style={styles.image} resizeMode='contain' />
@@ -279,6 +284,15 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        {/* Loading indicator for pagination */}
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <Text variant='small' color={theme.colors.text.secondary}>
+              Loading more...
+            </Text>
+          </View>
+        )}
 
         {/* Bottom Padding */}
         <View style={styles.bottomPadding} />
@@ -459,5 +473,10 @@ const styles = StyleSheet.create({
   image: {
     width: width * 0.3,
     height: width * 0.3,
+  },
+  loadingContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

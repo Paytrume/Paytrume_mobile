@@ -1,21 +1,24 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Building2, CheckCircle, ChevronRight, CreditCard, Edit2, Lock, LogOut, Shield, User } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import avatar from '../../../../assets/images/_image.png';
+import { Building2, CheckCircle, ChevronRight, CreditCard, Edit2, Lock, LogOut, MessageCircleWarning, Shield, User } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../../../components/typography/Text';
+import { useAuthStore } from '../../../store/auth.store';
 import { theme } from '../../../theme';
 import { UserProfile } from '../profile.types';
 
 export const ProfileScreen: React.FC = () => {
   const router = useRouter();
+  const { profile: sellerProfile, logout, updateProfile } = useAuthStore();
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile>({
     id: '1',
     fullName: 'Alex Palmer',
     email: 'Alex.palmer@gmail.com',
     phoneNumber: '08166388263',
-    avatar: require('../../../../assets/images/_image.png'),
+    avatar: undefined,
     isVerified: true,
     kycStatus: 'verified',
     address: {
@@ -27,14 +30,39 @@ export const ProfileScreen: React.FC = () => {
     },
   });
 
+  // Update profile when seller profile data is available
+  useEffect(() => {
+    if (sellerProfile) {
+      const updatedProfile: UserProfile = {
+        id: sellerProfile._id,
+        fullName: `${sellerProfile.first_name} ${sellerProfile.last_name}`,
+        email: sellerProfile.email,
+        phoneNumber: sellerProfile.mobile,
+        avatar: sellerProfile.avatar || '',
+        isVerified: sellerProfile.verifyAccount,
+        kycStatus: sellerProfile.verifyAccount ? 'verified' : 'pending',
+        address: {
+          country: 'Nigeria',
+          streetAddress: '',
+          state: '',
+          city: '',
+          postalCode: '',
+        },
+      };
+      setProfile(updatedProfile);
+      console.log('Profile updated from API data:', updatedProfile);
+    }
+  }, [sellerProfile]);
+
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
           // Clear auth state
+          await logout();
           router.replace('/(auth)/login');
         },
       },
@@ -42,7 +70,58 @@ export const ProfileScreen: React.FC = () => {
   };
 
   const handleVerifyKYC = () => {
-    Alert.alert('KYC Verification', 'Starting verification process...');
+    router.push('/(profile)/profile-verification');
+  };
+
+  const requestPermissions = async () => {
+    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    return cameraStatus === 'granted' && libraryStatus === 'granted';
+  };
+
+  const handlePickImage = async (useCamera: boolean) => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) {
+      Alert.alert('Permission Required', 'Please grant camera and photo library permissions to upload photos.');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const options = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      };
+
+      const result = useCamera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+
+      if (!result.canceled && result.assets[0]) {
+        const selectedUri = result.assets[0].uri;
+
+        // Update local profile state
+        setProfile((prev) => ({ ...prev, avatar: selectedUri }));
+
+        // Upload to API
+        await updateProfile({ avatar: selectedUri });
+        Alert.alert('Success', 'Profile picture updated successfully!');
+      }
+    } catch (error) {
+      console.error('Image picking error:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleEditAvatar = () => {
+    Alert.alert('Update Profile Picture', 'Choose an option', [
+      { text: 'Take Photo', onPress: () => handlePickImage(true) },
+      { text: 'Choose from Library', onPress: () => handlePickImage(false) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const renderMenuItem = (icon: React.ReactNode, title: string, description: string, onPress: () => void, showChevron: boolean = true) => (
@@ -69,8 +148,18 @@ export const ProfileScreen: React.FC = () => {
           Profile
         </Text>
         <View style={styles.avatarContainer}>
-          <Image source={avatar} style={styles.avatar} />
-          <TouchableOpacity style={styles.editAvatar} onPress={() => {}}>
+          {isUploadingAvatar ? (
+            <View style={styles.avatarPlaceholder}>
+              <ActivityIndicator size='large' color={theme.colors.primary} />
+            </View>
+          ) : profile.avatar ? (
+            <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <User size={50} color={theme.colors.primary} />
+            </View>
+          )}
+          <TouchableOpacity style={styles.editAvatar} onPress={handleEditAvatar} disabled={isUploadingAvatar}>
             <Edit2 size={16} color={theme.colors.white} />
           </TouchableOpacity>
         </View>
@@ -80,12 +169,21 @@ export const ProfileScreen: React.FC = () => {
         <Text variant='body' color={theme.colors.raw.white}>
           {profile.email}
         </Text>
-        <View style={styles.verifiedBadge}>
-          <CheckCircle size={16} color={theme.colors.state.success} />
-          <Text variant='small' color={theme.colors.state.success} style={styles.verifiedText}>
-            VERIFIED PROVIDER
-          </Text>
-        </View>
+        {profile.isVerified ? (
+          <View style={styles.verifiedBadge}>
+            <CheckCircle size={16} color={theme.colors.state.success} />
+            <Text variant='small' color={theme.colors.state.success} style={styles.verifiedText}>
+              VERIFIED
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.verifiedBadge}>
+            <MessageCircleWarning size={16} color={theme.colors.state.warning} />
+            <Text variant='small' color={theme.colors.state.warning} style={styles.verifiedText}>
+              NOT VERIFIED
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Personal Information Section */}
@@ -144,6 +242,16 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 3,
     borderColor: theme.colors.primary,
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.background.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editAvatar: {
     position: 'absolute',

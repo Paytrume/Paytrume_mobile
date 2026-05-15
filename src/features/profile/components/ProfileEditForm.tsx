@@ -1,13 +1,18 @@
-import { CheckCircle } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { CheckCircle, MessageCircleWarning } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 
+import { useAuthStore } from '@/store/auth.store';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../../../components/typography/Text';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { PhotoUploader } from '../../../components/ui/PhotoUploader';
 import { SelectionModal } from '../../../components/ui/SelectionModal';
+import { updateSellerProfile } from '../../../services/api';
 import { theme } from '../../../theme';
+import { showErrorToast, showSuccessToast } from '../../../utils/toast';
 import { City, Country, State, UserProfile } from '../profile.types';
+import { useProfileImageUpload } from '../useProfileImageUpload';
 
 const mockCountries: Country[] = [
   { name: 'Afghanistan', code: 'AF' },
@@ -39,30 +44,133 @@ const mockCities: City[] = [
 ];
 
 export default function ProfileEditForm() {
+  const { profile: sellerProfile, fetchSellerProfile } = useAuthStore();
+  const { uploadAvatarImage, uploadProgress, isUploading } = useProfileImageUpload();
+
   const [profile, setProfile] = useState<UserProfile>({
     id: '1',
-    fullName: 'Alex Palmer',
-    email: 'Alex.palmer@gmail.com',
-    phoneNumber: '08166388263',
+    fullName: '',
+    email: '',
+    phoneNumber: '',
     avatar: require('../../../../assets/images/_image.png'),
     isVerified: true,
     kycStatus: 'verified',
     address: {
-      country: 'Nigeria',
+      country: '',
       streetAddress: '',
       state: '',
       city: '',
       postalCode: '',
     },
   });
+
+  const [originalProfile, setOriginalProfile] = useState<UserProfile>(profile);
+  const [loading, setLoading] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [showStateModal, setShowStateModal] = useState(false);
   const [showCityModal, setShowCityModal] = useState(false);
 
-  const handleSaveChanges = () => {
-    // API call to save profile
-    Alert.alert('Success', 'Profile updated successfully');
+  const handleSaveChanges = async () => {
+    setLoading(true);
+    try {
+      // Parse fullName into first_name and last_name
+      const nameParts = profile.fullName.trim().split(' ');
+      const first_name = nameParts[0] || '';
+      const last_name = nameParts.slice(1).join(' ') || '';
+
+      // Build updateData with only changed fields
+      const updateData: any = {};
+
+      if (first_name !== sellerProfile?.first_name) {
+        updateData.first_name = first_name;
+      }
+
+      if (last_name !== sellerProfile?.last_name) {
+        updateData.last_name = last_name;
+      }
+
+      if (profile.phoneNumber !== sellerProfile?.mobile) {
+        updateData.mobile = profile.phoneNumber;
+      }
+
+      // Handle avatar upload if selected
+      if (profile.avatar && !profile.avatar.toString().includes('_image.png') && !profile.avatar.toString().startsWith('https://')) {
+        try {
+          const uploadedAvatarUrl = await uploadAvatarImage(profile.avatar.toString());
+          if (uploadedAvatarUrl) {
+            updateData.avatar = uploadedAvatarUrl;
+          }
+        } catch (err) {
+          showErrorToast('Failed to upload avatar image');
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (
+        profile.address?.country !== originalProfile.address?.country ||
+        profile.address?.streetAddress !== originalProfile.address?.streetAddress ||
+        profile.address?.state !== originalProfile.address?.state ||
+        profile.address?.city !== originalProfile.address?.city ||
+        profile.address?.postalCode !== originalProfile.address?.postalCode
+      ) {
+        updateData.address = profile.address;
+      }
+
+      // Check if there are any changes
+      if (Object.keys(updateData).length === 0) {
+        Alert.alert('No Changes', 'You have not made any changes to your profile');
+        setLoading(false);
+        return;
+      }
+
+      // Call API to update profile
+      const response = await updateSellerProfile(updateData);
+
+      if (response.success) {
+        showSuccessToast('Profile updated successfully');
+        // Refresh the profile data from the store
+        await fetchSellerProfile();
+        // Update original profile for next comparison
+        setOriginalProfile(profile);
+        console.log('Profile updated:', response.data);
+      } else {
+        showErrorToast(response.message || 'Failed to update profile');
+      }
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile';
+      showErrorToast(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Update profile when seller profile data is available
+  useEffect(() => {
+    if (sellerProfile) {
+      console.log('Seller profile data received:', sellerProfile);
+      const updatedProfile: UserProfile = {
+        id: sellerProfile._id,
+        fullName: `${sellerProfile.first_name} ${sellerProfile.last_name}`,
+        email: sellerProfile.email,
+        phoneNumber: sellerProfile.mobile,
+        avatar: require('../../../../assets/images/_image.png'),
+        isVerified: sellerProfile.verifyAccount,
+        kycStatus: sellerProfile.verifyAccount ? 'verified' : 'pending',
+        address: {
+          country: sellerProfile.address.country,
+          streetAddress: sellerProfile.address.streetAddress,
+          state: sellerProfile.address.state,
+          city: sellerProfile.address.city,
+          postalCode: sellerProfile.address.postalCode,
+        },
+      };
+      setProfile(updatedProfile);
+      setOriginalProfile(updatedProfile);
+      console.log('Profile updated from API data:', updatedProfile);
+    }
+  }, [sellerProfile]);
 
   return (
     <ScrollView style={styles.editForm} showsVerticalScrollIndicator={false}>
@@ -77,18 +185,35 @@ export default function ProfileEditForm() {
         BASIC DETAILS
       </Text>
       <View style={styles.section}>
+        <Text variant='body' style={styles.label}>
+          Profile Avatar (Optional)
+        </Text>
+        <PhotoUploader onImageSelected={(uri) => setProfile({ ...profile, avatar: uri })} onImageRemoved={() => setProfile({ ...profile, avatar: require('../../../../assets/images/_image.png') })} />
+
+        {uploadProgress > 0 && uploadProgress < 100 && (
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${uploadProgress}%` }]} />
+            </View>
+            <Text variant='small' color={theme.colors.text.secondary} style={styles.progressText}>
+              Uploading avatar... {uploadProgress}%
+            </Text>
+          </View>
+        )}
+
         <Input label='Full Name' value={profile.fullName} onChangeText={(text) => setProfile({ ...profile, fullName: text })} placeholder='Enter your full name' />
 
         <Input
           label='Email Address'
           value={profile.email}
-          onChangeText={(text) => setProfile({ ...profile, email: text })}
+          onChangeText={() => {}} // Prevent any changes
           placeholder='Enter your email'
           keyboardType='email-address'
           autoCapitalize='none'
+          style={styles.disabledInput}
         />
         <Text variant='small' color={theme.colors.text.tertiary} style={styles.fieldHint}>
-          We&apos;ll use this email for receipts and important account alerts.
+          Email cannot be changed. Contact support if you need to update it.
         </Text>
 
         <Input label='Phone Number' value={profile.phoneNumber} onChangeText={(text) => setProfile({ ...profile, phoneNumber: text })} placeholder='Enter your phone number' keyboardType='phone-pad' />
@@ -166,12 +291,21 @@ export default function ProfileEditForm() {
         </Text>
         <View style={styles.kycStatus}>
           <Text variant='body'>KYC status</Text>
-          <View style={styles.kycBadge}>
-            <CheckCircle size={14} color={theme.colors.state.success} />
-            <Text variant='small' color={theme.colors.state.success}>
-              Verified
-            </Text>
-          </View>
+          {profile.isVerified ? (
+            <View style={styles.kycBadge}>
+              <CheckCircle size={14} color={theme.colors.state.success} />
+              <Text variant='small' color={theme.colors.state.success}>
+                Verified
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.kycBadge}>
+              <MessageCircleWarning size={14} color={theme.colors.state.warning} />
+              <Text variant='small' color={theme.colors.state.warning}>
+                Not Verified
+              </Text>
+            </View>
+          )}
         </View>
         <Text variant='small' color={theme.colors.text.tertiary}>
           Passed
@@ -181,7 +315,7 @@ export default function ProfileEditForm() {
         </Text>
       </View>
 
-      <Button title='Save changes' onPress={handleSaveChanges} style={styles.saveButton} />
+      <Button title={loading ? 'Saving...' : 'Save changes'} onPress={handleSaveChanges} disabled={loading} style={styles.saveButton} />
       {/* Selection Modals */}
       <SelectionModal
         visible={showCountryModal}
@@ -248,6 +382,10 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 16,
   },
+  disabledInput: {
+    backgroundColor: theme.colors.background.tertiary,
+    color: theme.colors.text.tertiary,
+  },
   selectInput: {
     borderWidth: 1,
     borderColor: theme.colors.border.medium,
@@ -305,5 +443,23 @@ const styles = StyleSheet.create({
   place: {
     flexDirection: 'column',
     flex: 1,
+  },
+  progressContainer: {
+    marginVertical: 12,
+    marginBottom: 16,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: theme.colors.border.medium,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+  },
+  progressText: {
+    textAlign: 'center',
   },
 });

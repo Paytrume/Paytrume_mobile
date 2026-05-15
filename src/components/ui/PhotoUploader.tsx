@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
+import { Camera, X } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { theme } from '../../theme';
 import { Text } from '../typography/Text';
 
@@ -46,15 +46,14 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({ onImageSelected, o
 
     setIsLoading(true);
     try {
-      const options: ImagePicker.ImagePickerOptions = {
+      const options = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.8,
-        base64: false,
+        quality: 1,
       };
 
       const result = useCamera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+      console.log('ImagePicker result:', result);
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;

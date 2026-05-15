@@ -1,85 +1,57 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { Copy, Share2, Edit2, Trash2, RefreshCw, ChevronRight } from 'lucide-react-native';
+import { ChevronRight, Copy, Edit2, RefreshCw, Share2, Trash2 } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../../../components/typography/Text';
 import { Button } from '../../../components/ui/Button';
+import { useProductsStore } from '../../../store/products.store';
 import { theme } from '../../../theme';
-import * as Clipboard from 'expo-clipboard';
 
 type LinkStatus = 'active' | 'draft' | 'expired';
 
 export interface LinkItem {
-  id: string;
+  _id: string;
   title: string;
   amount: string;
-  link: string;
+  payment_link: string;
   status: LinkStatus;
   createdAt: string;
-  customerEmail?: string;
+  buyer_email?: string;
+  product_images?: string | string[];
+  description: string
 }
 
 interface LinksListProps {
   initialLinks?: LinkItem[];
 }
 
-// Mock data
-const mockLinks: LinkItem[] = [
-  {
-    id: '1',
-    title: 'Web Design Services',
-    amount: 'N850.00',
-    link: 'secpay.app/l/wd850X2',
-    status: 'active',
-    createdAt: 'Oct 15, 2025',
-  },
-  {
-    id: '2',
-    title: 'Vintage Camera Lens',
-    amount: 'N850.00',
-    link: 'secpay.app/l/wd850X2',
-    status: 'draft',
-    createdAt: 'Oct 15, 2025',
-  },
-  {
-    id: '3',
-    title: 'Logo Design Pack',
-    amount: 'N150.00',
-    link: 'secpay.app/l/wd850X2',
-    status: 'active',
-    createdAt: 'Oct 15, 2025',
-  },
-  {
-    id: '4',
-    title: 'Custom Illustration',
-    amount: 'N50,000.00',
-    link: 'secpay.app/l/wd850X2',
-    status: 'draft',
-    createdAt: 'Oct 15, 2025',
-  },
-  {
-    id: '5',
-    title: 'Consulting Session',
-    amount: 'N150,000.00',
-    link: 'secpay.app/l/wd850X2',
-    status: 'expired',
-    createdAt: 'Oct 15, 2025',
-  },
-  {
-    id: '6',
-    title: 'Website design',
-    amount: 'N200,000.00',
-    link: 'secpay.app/l/wd850X2',
-    status: 'expired',
-    createdAt: 'Oct 15, 2025',
-  },
-];
-
 export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
   const router = useRouter();
+  const { products, fetchProducts, isLoading } = useProductsStore();
   const [activeTab, setActiveTab] = useState<'active' | 'draft' | 'expired'>('active');
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
-  const [links] = useState<LinkItem[]>(initialLinks || mockLinks);
+
+  // Fetch products on mount
+  useEffect(() => {
+    fetchProducts(0);
+  }, []);
+
+  // Convert products to LinkItem format
+  const links: LinkItem[] =
+    initialLinks! ||
+    products.map((product) => ({
+      _id: product._id,
+      title: product.title || product.product_name,
+      amount: product.amount || product.product_price,
+      payment_link: product.payment_link,
+      createdAt: product.createdAt ? new Date(product.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown',
+      buyer_email: product.buyer_email,
+      status: 'active',
+      product_images: product.product_images,
+      description: product.description,
+    }));
+
 
   // Filter links based on active tab
   const filteredLinks = links.filter((link) => {
@@ -89,7 +61,7 @@ export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
   });
 
   const handleCopyLink = async (link: string, id: string) => {
-    await Clipboard.setStringAsync(`https://${link}`);
+    await Clipboard.setStringAsync(`${link}`);
     setCopiedLink(id);
     setTimeout(() => setCopiedLink(null), 2000);
   };
@@ -97,14 +69,14 @@ export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
   const handleShareLink = (link: LinkItem) => {
     router.push({
       pathname: '/share-link',
-      params: { id: link.id },
+      params: { link: JSON.stringify(link) },
     });
   };
 
   const handleEditLink = (link: LinkItem) => {
     router.push({
       pathname: '/create-link',
-      params: { id: link.id, edit: 'true' },
+      params: { id: link._id, edit: 'true' },
     });
   };
 
@@ -138,7 +110,7 @@ export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
   const handleViewDetails = (link: LinkItem) => {
     router.push({
       pathname: '/link-details',
-      params: { id: link.id },
+      params: { link: JSON.stringify(link) },
     });
   };
 
@@ -157,11 +129,11 @@ export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
     return status.toUpperCase();
   };
 
-  const renderLinkCard = (link: LinkItem) => {
-    const isCopied = copiedLink === link.id;
+  const renderLinkCard = (link: LinkItem, idx: number) => {
+    const isCopied = copiedLink === link._id;
 
     return (
-      <View key={link.id} style={styles.linkCard}>
+      <View key={idx} style={styles.linkCard}>
         {/* Card Header - Clickable to view details */}
         <TouchableOpacity style={styles.cardHeader} onPress={() => handleViewDetails(link)} activeOpacity={0.7}>
           <View style={styles.cardTitleRow}>
@@ -171,7 +143,7 @@ export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
             <ChevronRight size={20} color={theme.colors.text.tertiary} />
           </View>
           <Text variant='h2' style={styles.linkAmount}>
-            {link.amount}
+            ₦{parseInt(link.amount).toLocaleString()}
           </Text>
           <Text variant='small' color={theme.colors.text.tertiary} style={styles.linkDate}>
             Created {link.createdAt}
@@ -181,7 +153,7 @@ export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
         {/* Link URL */}
         <View style={styles.linkRow}>
           <Text variant='small' style={styles.linkUrl} numberOfLines={1}>
-            {link.link}
+            {link.payment_link}
           </Text>
           <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(link.status)}15` }]}>
             <Text variant='small' style={[styles.statusText, { color: getStatusColor(link.status) }]}>
@@ -194,7 +166,7 @@ export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
         <View style={styles.actionButtons}>
           {link.status === 'active' && (
             <>
-              <TouchableOpacity style={styles.actionButton} onPress={() => handleCopyLink(link.link, link.id)}>
+              <TouchableOpacity style={styles.actionButton} onPress={() => handleCopyLink(link.payment_link, link._id)}>
                 <Copy size={16} color={theme.colors.text.secondary} />
                 <Text variant='small' style={styles.actionText}>
                   {isCopied ? 'Copied!' : 'Copy Link'}
@@ -273,7 +245,14 @@ export const LinksList: React.FC<LinksListProps> = ({ initialLinks }) => {
       {/* Links List */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.linksList}>
-          {filteredLinks.length > 0 ? (
+          {isLoading && links.length === 0 ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size='large' color={theme.colors.primary} />
+              <Text variant='body' color={theme.colors.text.secondary} style={{ marginTop: 16 }}>
+                Loading your links...
+              </Text>
+            </View>
+          ) : filteredLinks.length > 0 ? (
             filteredLinks.map(renderLinkCard)
           ) : (
             <View style={styles.emptyState}>

@@ -1,15 +1,18 @@
 import { Stack, useRouter } from 'expo-router';
 import { Calendar, CheckCircle, Clock4, Search, ShieldCheck } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dimensions, Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
 import { Text } from '../../components/typography/Text';
+import { useProductsStore } from '../../store/products.store';
 import { theme } from '../../theme';
 
 //images
 import empty from '../../../assets/images/empty.png';
 import { Input } from '../../components/ui/Input';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { useAuthStore } from '@/store/auth.store';
 
 const { width } = Dimensions.get('window');
 
@@ -24,35 +27,17 @@ interface RecentLink {
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const scrollX = useSharedValue(0);
+
   const [activeFilter, setActiveFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('As a seller');
   const [showHistoryModel, setShowHistoryModal] = useState(false);
+  const { products, loadMoreProducts, isLoading, hasNextPage } = useProductsStore();
+  const { profile } = useAuthStore();
+  const [modeProduct, setModeProduct] = useState(products);
 
   const statusFilters = ['All', 'Awaiting Pay', 'In Escrow', 'Completed'];
-  const recentLinks: RecentLink[] = [
-    {
-      id: '1',
-      title: 'Web Design Service...',
-      description: 'Link sent to mark@exam...',
-      amount: 'N85,000.00',
-      status: 'in_escrow',
-    },
-    {
-      id: '2',
-      title: 'Vintage Camera...',
-      description: 'Link shared via What...',
-      amount: 'N350,000.50',
-      status: 'awaiting_pay',
-    },
-    {
-      id: '3',
-      title: 'Logo Design Pack',
-      description: 'Completed on Oct 12',
-      amount: 'N15,000.00',
-      status: 'completed',
-    },
-  ];
 
   const getStatusColor = (status: string, tag: string) => {
     switch (status) {
@@ -101,7 +86,18 @@ export default function HistoryScreen() {
     setShowHistoryModal(false);
   };
 
-  const renderRecentLink = ({ item }: { item: RecentLink }, onPress: () => void) => (
+  const handleScrollEndReached = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingOffset = 200; // Load more when user is 200px from bottom
+
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingOffset) {
+      if (hasNextPage && !isLoading) {
+        loadMoreProducts();
+      }
+    }
+  };
+
+  const renderRecentLink = ({ item }: { item: any }, onPress: () => void) => (
     <TouchableOpacity style={styles.linkItem} onPress={onPress}>
       <View style={styles.linkLeft}>
         <View style={[styles.linkStatusIcon, { backgroundColor: getStatusColor(item.status, 'background') }]}>{getStatusIcon(item.status)}</View>
@@ -116,7 +112,7 @@ export default function HistoryScreen() {
       </View>
       <View style={styles.linkRight}>
         <Text variant='body' style={styles.linkAmount}>
-          {item.amount}
+          {parseInt(item.amount).toLocaleString()}
         </Text>
         <Text variant='small' style={[styles.linkStatus, { color: getStatusColor(item.status, 'text') }]}>
           {getStatusText(item.status)}
@@ -152,6 +148,17 @@ export default function HistoryScreen() {
     </Modal>
   );
 
+  useEffect(() => {
+    console.log(mode) 
+    if(mode === 'As a seller') {
+      const data = products.filter((item) => item.seller_email === profile?.email)
+      setModeProduct(data)
+    } else {
+      const data = products.filter((item) => item.buyer_email === profile?.email);
+      setModeProduct(data)
+    }
+  }, [mode])
+
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen
@@ -171,7 +178,7 @@ export default function HistoryScreen() {
         <SegmentedControl options={['As a seller', 'As a buyer']} value={mode} onChange={setMode} />
         <Input label='' placeholder='Search transactions, names...' style={styles.search} value={search} onChangeText={setSearch} leftIcon={Search} />
       </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} onMomentumScrollEnd={handleScrollEndReached}>
         {/* Status Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersContainer} contentContainerStyle={styles.filtersContent}>
           {statusFilters.map((filter) => (
@@ -185,8 +192,17 @@ export default function HistoryScreen() {
 
         {/* Recent Links List */}
         <View style={styles.linksList}>
-          {recentLinks.length > 0 ? (
-            recentLinks.map((link) => <View key={link.id}>{renderRecentLink({ item: link }, () => router.push('/share-link'))}</View>)
+          {modeProduct.length > 0 ? (
+            modeProduct.map((link) => (
+              <View key={link._id}>
+                {renderRecentLink({ item: link }, () =>
+                  router.push({
+                    pathname: '/share-link',
+                    params: { link: JSON.stringify(link) },
+                  }),
+                )}
+              </View>
+            ))
           ) : (
             <View style={styles.imageContainer}>
               <Image source={empty} style={styles.image} resizeMode='contain' />
@@ -283,6 +299,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   imageContainer: {
+    marginTop: 120,
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 200,
@@ -329,6 +346,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: theme.colors.primary,
     width: '100%',
-    paddingBottom: 20
+    paddingBottom: 20,
   },
 });

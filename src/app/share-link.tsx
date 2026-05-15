@@ -1,6 +1,6 @@
 // src/app/share-link.tsx
 import * as Clipboard from 'expo-clipboard';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, CircleCheck, Copy, Image, Lock } from 'lucide-react-native';
 import React from 'react';
 import { Alert, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -10,16 +10,19 @@ import { theme } from '../theme';
 
 export default function ShareLinkScreen() {
   const router = useRouter();
+  const { link } = useLocalSearchParams();
+
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [copiedCode, setCopiedCode] = React.useState(false);
 
+  const parsedLink = JSON.parse(link as string)
   // Mock data
   const linkData = {
-    customerEmail: 'chukwuvidera@gmail.com',
-    paymentLink: 'https://pay.app/escrow/ry73kd',
-    productCode: '2he72fdb',
-    projectTitle: 'Logo Design Project',
-    amount: '$150.00',
+    customerEmail: parsedLink.buyer_email,
+    paymentLink: parsedLink.payment_link,
+    productCode: parsedLink._id,
+    projectTitle: parsedLink.title,
+    amount: parsedLink.amount,
     status: 'Escrow',
   };
 
@@ -44,7 +47,10 @@ export default function ShareLinkScreen() {
   };
 
   const handleViewDetails = () => {
-    router.push('/link-details');
+    router.push({
+      pathname: '/link-details',
+      params: { link },
+    });
   };
 
   return (
@@ -74,7 +80,7 @@ export default function ShareLinkScreen() {
           Link Ready!
         </Text>
         <Text variant='body' color={theme.colors.text.secondary} style={styles.successMessage}>
-          Your payment link has been created and shared to {linkData.customerEmail}
+          Your payment link has been created and shared to {parsedLink.buyer_email}
         </Text>
 
         {/* Payment Link Section */}
@@ -131,7 +137,7 @@ export default function ShareLinkScreen() {
               {linkData.projectTitle}
             </Text>
             <Text variant='small' color={theme.colors.text.tertiary}>
-              {linkData.amount}
+              {parseInt(linkData.amount).toLocaleString()}
             </Text>
           </View>
           <View style={styles.projectStatusContainer}>

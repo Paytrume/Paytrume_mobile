@@ -1,57 +1,25 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { z } from 'zod';
+import { Controller } from 'react-hook-form';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../../../components/typography/Text';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { theme } from '../../../theme';
-
-// Define login schema
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+import { useLogin } from '../useLogin';
 
 // no props needed for LoginForm
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
+  const { form, onSubmit, isLoading, error } = useLogin();
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const {
     control,
     handleSubmit,
     formState: { isValid },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    mode: 'onBlur',
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
-
-  const onSubmit = async (data: LoginFormData) => {
-    try {
-      setIsLoading(true);
-
-      // Mock API call - replace with actual login API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // On success, navigate to home
-      Alert.alert('Success', 'Logged in successfully!', [{ text: 'OK', onPress: () => router.push('/(tabs)') }]);
-    } catch {
-      Alert.alert('Error', 'Failed to sign in. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  } = form;
 
   const handleRegisterPress = () => {
     router.push('/(auth)/register');
@@ -121,6 +89,11 @@ export const LoginForm: React.FC = () => {
 
         <View style={styles.buttonContainer}>
           <Button title={isLoading ? 'Signing in...' : 'Sign in'} onPress={handleSubmit(onSubmit)} style={styles.signInButton} disabled={!isValid || isLoading} loading={isLoading} />
+          {error && (
+            <Text variant='small' color={theme.colors.state.error} style={styles.errorMessage}>
+              {error}
+            </Text>
+          )}
         </View>
 
         <View style={styles.footerContainer}>
@@ -172,6 +145,10 @@ const styles = StyleSheet.create({
   },
   signInButton: {
     width: '100%',
+  },
+  errorMessage: {
+    marginTop: 12,
+    textAlign: 'center',
   },
   footerContainer: {
     alignItems: 'center',

@@ -1,6 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
+import { forgotPasswordGenerateOtp, forgotPasswordResetWithOtp } from '../../services/api';
+import { showErrorToast } from '../../utils/toast';
 
 export const usePasswordReset = () => {
   const router = useRouter();
@@ -10,7 +12,7 @@ export const usePasswordReset = () => {
   const [error, setError] = useState<string | null>(null);
   const [otpTimer, setOtpTimer] = useState(0);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startOtpTimer = useCallback(() => {
     setOtpTimer(60);
@@ -36,15 +38,21 @@ export const usePasswordReset = () => {
     setIsLoadingEmail(true);
     setError(null);
     try {
-      // simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      startOtpTimer();
-      // navigate including email as query
-      router.push(`/(auth)/verify-otp?email=${encodeURIComponent(email)}`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to send reset email';
+      const response = await forgotPasswordGenerateOtp(email);
+
+      if (response.success) {
+        startOtpTimer();
+        // Navigate to OTP verification with email in query params
+        router.push(`/(auth)/verify-otp?email=${encodeURIComponent(email)}`);
+      } else {
+        const errorMsg = response.message || 'Failed to send reset email';
+        setError(errorMsg);
+        showErrorToast(errorMsg, 'long');
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || (err instanceof Error ? err.message : 'Failed to send reset email');
       setError(msg);
-      Alert.alert('Error', msg);
+      showErrorToast(msg, 'long');
     } finally {
       setIsLoadingEmail(false);
     }
@@ -54,17 +62,13 @@ export const usePasswordReset = () => {
     setIsLoadingOtp(true);
     setError(null);
     try {
-      // simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      // mock validation
-      if (otp !== '123456') {
-        throw new Error('Invalid OTP');
-      }
-      router.push(`/(auth)/create-new-password?email=${encodeURIComponent(email)}&token=reset-token`);
+      // Just navigate to new password form with email and otp
+      // The actual verification happens when password is submitted
+      router.push(`/(auth)/create-new-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to verify OTP';
+      const msg = err instanceof Error ? err.message : 'Failed to proceed';
       setError(msg);
-      Alert.alert('Error', msg);
+      showErrorToast(msg, 'long');
     } finally {
       setIsLoadingOtp(false);
     }
@@ -73,25 +77,40 @@ export const usePasswordReset = () => {
   const resendOtp = async (email: string) => {
     setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      startOtpTimer();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to resend OTP';
+      const response = await forgotPasswordGenerateOtp(email);
+
+      if (response.success) {
+        startOtpTimer();
+        showErrorToast('OTP sent to your email', 'short');
+      } else {
+        const errorMsg = response.message || 'Failed to resend OTP';
+        setError(errorMsg);
+        showErrorToast(errorMsg, 'long');
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || (err instanceof Error ? err.message : 'Failed to resend OTP');
       setError(msg);
-      Alert.alert('Error', msg);
+      showErrorToast(msg, 'long');
     }
   };
 
-  const resetPassword = async (token: string, newPassword: string) => {
+  const resetPassword = async (email: string, otp: string, newPassword: string) => {
     setIsLoadingReset(true);
     setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      Alert.alert('Success', 'Password reset successfully', [{ text: 'OK', onPress: () => router.push('/(auth)/login') }]);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to reset password';
+      const response = await forgotPasswordResetWithOtp(email, otp, newPassword);
+
+      if (response.success) {
+        Alert.alert('Success', 'Password reset successfully. Please login with your new password.', [{ text: 'OK', onPress: () => router.push('/(auth)/login') }]);
+      } else {
+        const errorMsg = response.message || 'Failed to reset password';
+        setError(errorMsg);
+        showErrorToast(errorMsg, 'long');
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || (err instanceof Error ? err.message : 'Failed to reset password');
       setError(msg);
-      Alert.alert('Error', msg);
+      showErrorToast(msg, 'long');
     } finally {
       setIsLoadingReset(false);
     }

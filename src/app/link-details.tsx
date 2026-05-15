@@ -1,34 +1,27 @@
-// src/app/link-details.tsx
+import ImageSkeleton from '@/components/ui/ImageSkeleton';
 import * as Clipboard from 'expo-clipboard';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, CircleCheck, Copy, Mail, Share2 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../components/typography/Text';
 import { Button } from '../components/ui/Button';
 import { theme } from '../theme';
 
 // image mocks
-import kettle from '../../assets/images/kettle.png';
 
 export default function LinkDetailsScreen() {
   const router = useRouter();
+  const { link } = useLocalSearchParams();
+  console.log(link)
+  const parsedLink = link ? JSON.parse(link as string) : null;
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [showResendLinkModal, setShowResendLinkModal] = useState(false);
   const [showTrackModal, setShowTrackModal] = useState(false);
+  const [imgLoading, setImgLoading] = useState(true);
+  const [loadingStates, setLoadingStates] = useState<{ [key: number]: boolean }>({});
 
-  // Mock data
-  const linkData = {
-    title: 'Web Design Services',
-    amount: '₱15,000.00',
-    description: 'This is a description of what the work for the logo design job would entail.',
-    dateCreated: '25th Oct, 2025',
-    customerEmail: 'examplecustomer@email.com',
-    paymentLink: 'https://pay.app/escrow/ry73kd',
-    productCode: '2he72fdb',
-    status: 'ACTIVE',
-  };
 
   const handleCopy = async (text: string, type: 'link' | 'code') => {
     await Clipboard.setStringAsync(text);
@@ -42,7 +35,10 @@ export default function LinkDetailsScreen() {
   };
 
   const handleShare = () => {
-    router.push('/share-link');
+    router.push({
+      pathname: '/share-link',
+      params: { link: JSON.stringify(link) },
+    });
   };
 
   const handleResendLink = () => {
@@ -72,7 +68,7 @@ export default function LinkDetailsScreen() {
             Product link sent!
           </Text>
           <Text variant='body' color={theme.colors.text.secondary} style={styles.resendMessage}>
-            Your payment link has been sent to chukwuvidera@gmail.com{' '}
+            Your payment link has been sent to `${parsedLink.buyer_email}`
           </Text>
         </View>
       </Pressable>
@@ -123,6 +119,10 @@ export default function LinkDetailsScreen() {
     </Modal>
   );
 
+  useEffect(() => {
+    console.log(parsedLink.product_images);
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen
@@ -150,16 +150,16 @@ export default function LinkDetailsScreen() {
         {/* Title and Amount */}
         <View style={styles.headerSection}>
           <Text variant='body' style={styles.title}>
-            {linkData.title}
+            {parsedLink.title}
           </Text>
           <Text variant='body' style={styles.amount}>
-            {linkData.amount}
+            {parseInt(parsedLink.amount).toLocaleString()}
           </Text>
         </View>
 
         {/* Description */}
         <Text variant='body' color={theme.colors.text.secondary} style={styles.description}>
-          {linkData.description}
+          {parsedLink.description}
         </Text>
 
         {/* Date and Customer */}
@@ -169,7 +169,7 @@ export default function LinkDetailsScreen() {
               Date created
             </Text>
             <Text variant='body' style={styles.infoValue}>
-              {linkData.dateCreated}
+              {parsedLink.createdAt}
             </Text>
           </View>
           <View style={styles.divider} />
@@ -179,14 +179,36 @@ export default function LinkDetailsScreen() {
               Customer email
             </Text>
             <Text variant='body' style={styles.infoValue}>
-              {linkData.customerEmail}
+              {parsedLink.buyer_email}
             </Text>
           </View>
         </View>
 
-        <View style={styles.imageContainer}>
-          <Image source={kettle} resizeMode='contain' />
-        </View>
+        {Array.isArray(parsedLink.product_images) && parsedLink.product_images.length > 0 ? (
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
+            {parsedLink.product_images.map((item: string, index: number) => (
+              <View style={styles.imageContainer} key={index}>
+                {/* Absolute positioned skeleton */}
+                {loadingStates[index] !== false && (
+                  <View style={StyleSheet.absoluteFillObject}>
+                    <ImageSkeleton width='100%' height='100%' />
+                  </View>
+                )}
+                <Image source={{ uri: item }} style={styles.sliderImage} resizeMode='contain' onLoadEnd={() => setLoadingStates((prev) => ({ ...prev, [index]: false }))} />
+              </View>
+            ))}
+          </ScrollView>
+        ) : parsedLink.product_images ? (
+          <View style={styles.imageContainer}>
+            {imgLoading && (
+              <View style={StyleSheet.absoluteFillObject}>
+                <ImageSkeleton width='100%' height={200} />
+              </View>
+            )}
+            <Image source={{ uri: parsedLink.product_images }} style={styles.singleImage} resizeMode='contain' onLoadEnd={() => setImgLoading(false)} />
+          </View>
+        ) : null}
+
         {/* Payment Link Section */}
         <View style={styles.section}>
           <View style={styles.labelRow}>
@@ -202,9 +224,9 @@ export default function LinkDetailsScreen() {
 
           <View style={styles.copyRow}>
             <Text variant='body' style={styles.linkText} numberOfLines={1}>
-              {linkData.paymentLink}
+              {parsedLink.payment_link}
             </Text>
-            <TouchableOpacity onPress={() => handleCopy(linkData.paymentLink, 'link')} style={styles.copyButton}>
+            <TouchableOpacity onPress={() => handleCopy(parsedLink.payment_link, 'link')} style={styles.copyButton}>
               <Copy size={20} color={theme.colors.primary} />
               <Text variant='small' color={copiedLink ? theme.colors.state.success : theme.colors.primary}>
                 {copiedLink ? 'Copied!' : 'Copy'}
@@ -220,9 +242,9 @@ export default function LinkDetailsScreen() {
           </Text>
           <View style={styles.copyRow}>
             <Text variant='body' style={styles.codeText}>
-              {linkData.productCode}
+              {parsedLink._id}
             </Text>
-            <TouchableOpacity onPress={() => handleCopy(linkData.productCode, 'code')} style={styles.copyButton}>
+            <TouchableOpacity onPress={() => handleCopy(parsedLink._id, 'code')} style={styles.copyButton}>
               <Copy size={20} color={theme.colors.primary} />
               <Text variant='small' color={copiedCode ? theme.colors.state.success : theme.colors.primary}>
                 {copiedCode ? 'Copied!' : 'Copy'}
@@ -386,6 +408,10 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     marginBottom: 24,
+    width: '100%',
+    // aspectRatio: 1, // 👈 makes it square
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   headBg: { backgroundColor: `${theme.colors.primary}15` },
   modalOverlay: {
@@ -438,6 +464,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    paddingTop: 20
+    paddingTop: 20,
+  },
+  sliderImage: {
+    width: 300,
+    height: 200,
+    marginRight: 12,
+    borderRadius: 10,
+  },
+
+  singleImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 10,
   },
 });

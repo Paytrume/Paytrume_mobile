@@ -17,7 +17,7 @@ import { RecurringCategorySelector, RecurringRateSelector } from './RecurringRat
 export const CreateLinkForm: React.FC = () => {
   const [showRecurringSelector, setShowRecurringSelector] = useState(false);
   const [showRecurringCategorySelector, setShowRecurringCategorySelector] = useState(false);
-  const { createLink, isLoading } = useCreateLink();
+  const { createLink, isLoading, uploadProgress } = useCreateLink();
 
   const {
     control,
@@ -29,7 +29,7 @@ export const CreateLinkForm: React.FC = () => {
     resolver: zodResolver(createLinkSchema),
     mode: 'onBlur',
     defaultValues: {
-      type: 'product',
+      type: 'goods',
       name: '',
       cost: '',
       description: '',
@@ -50,14 +50,14 @@ export const CreateLinkForm: React.FC = () => {
 
   const renderTypeToggle = () => (
     <View style={styles.typeToggle}>
-      <TouchableOpacity style={[styles.typeButton, watchType === 'product' && styles.typeButtonActive]} onPress={() => setValue('type', 'product')}>
-        <Text variant='body' color={watchType === 'product' ? theme.colors.primary : theme.colors.text.secondary} style={watchType === 'product' && styles.typeTextActive}>
+      <TouchableOpacity style={[styles.typeButton, watchType === 'goods' && styles.typeButtonActive]} onPress={() => setValue('type', 'goods')}>
+        <Text variant='body' color={watchType === 'goods' ? theme.colors.primary : theme.colors.text.secondary} style={watchType === 'goods' && styles.typeTextActive}>
           Product
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.typeButton, watchType === 'service' && styles.typeButtonActive]} onPress={() => setValue('type', 'service')}>
-        <Text variant='body' color={watchType === 'service' ? theme.colors.primary : theme.colors.text.secondary} style={watchType === 'service' && styles.typeTextActive}>
+      <TouchableOpacity style={[styles.typeButton, watchType === 'services' && styles.typeButtonActive]} onPress={() => setValue('type', 'services')}>
+        <Text variant='body' color={watchType === 'services' ? theme.colors.primary : theme.colors.text.secondary} style={watchType === 'services' && styles.typeTextActive}>
           Services
         </Text>
       </TouchableOpacity>
@@ -105,10 +105,11 @@ export const CreateLinkForm: React.FC = () => {
     </View>
   );
 
+  console.log(!isValid, isLoading, uploadProgress > 0);
+
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-
         {renderTypeToggle()}
 
         <Text variant='h2' style={styles.sectionTitle}>
@@ -121,11 +122,11 @@ export const CreateLinkForm: React.FC = () => {
             name='name'
             render={({ field: { onChange, onBlur, value }, fieldState: { error, isTouched } }) => (
               <Input
-                label={`${watchType === 'product' ? 'Product' : 'Service'} Name`}
+                label={`${watchType === 'goods' ? 'Product' : 'Service'} Name`}
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
-                placeholder={watchType === 'product' ? 'e.g. Gas burner, Used iPhone 13' : 'e.g. Logo Design, Plumbing'}
+                placeholder={watchType === 'goods' ? 'e.g. Gas burner, Used iPhone 13' : 'e.g. Logo Design, Plumbing'}
                 error={error?.message}
                 touched={isTouched}
               />
@@ -141,7 +142,7 @@ export const CreateLinkForm: React.FC = () => {
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
-                placeholder='₹ 0.00'
+                placeholder='₦ 0.00'
                 keyboardType='numeric'
                 error={error?.message}
                 touched={isTouched}
@@ -168,7 +169,7 @@ export const CreateLinkForm: React.FC = () => {
             )}
           />
 
-          {watchType === 'service' && (
+          {watchType === 'services' && (
             <>
               {renderPaymentTypeToggle()}
 
@@ -207,12 +208,11 @@ export const CreateLinkForm: React.FC = () => {
                   <MaskedTextInput
                     style={styles.phoneInput}
                     value={value}
-                    onChangeText={(masked, unmasked) => onChange(unmasked)}
+                    onChangeText={onChange}
                     onBlur={onBlur}
                     placeholder='e.g. 1234567890'
                     placeholderTextColor={theme.colors.text.tertiary}
                     keyboardType='phone-pad'
-                    mask={['(', /\d/, /\d/, /\d/, ')', ' ', /\d/, /\d/, /\d/, '-', /\d/, /\d/, /\d/, /\d/]}
                   />
                 </View>
                 {error && isTouched && (
@@ -226,7 +226,7 @@ export const CreateLinkForm: React.FC = () => {
 
           <View style={styles.photoSection}>
             <Text variant='body' style={styles.photoLabel}>
-              Cover Photo (Optional)
+              Cover Photo
             </Text>
             <Controller control={control} name='coverPhoto' render={({ field: { onChange } }) => <PhotoUploader onImageSelected={onChange} onImageRemoved={() => onChange(undefined)} />} />
           </View>
@@ -240,7 +240,18 @@ export const CreateLinkForm: React.FC = () => {
             </Text>
           </View>
 
-          <Button title='Generate Secure Link' onPress={handleSubmit(onSubmit)} style={styles.submitButton} disabled={!isValid || isLoading} loading={isLoading} />
+          {uploadProgress > 0 && uploadProgress < 100 && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${uploadProgress}%` }]} />
+              </View>
+              <Text variant='small' color={theme.colors.text.secondary} style={styles.progressText}>
+                Uploading image... {uploadProgress}%
+              </Text>
+            </View>
+          )}
+
+          <Button title='Generate Secure Link' onPress={handleSubmit(onSubmit)} style={styles.submitButton} disabled={!isValid || isLoading || uploadProgress > 0} loading={isLoading} />
 
           <Text variant='small' color={theme.colors.text.tertiary} style={styles.footerText}>
             Funds will be held safely in escrow
@@ -395,6 +406,23 @@ const styles = StyleSheet.create({
   },
   infoText: {
     lineHeight: 20,
+  },
+  progressContainer: {
+    marginVertical: 16,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: theme.colors.border.medium,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+  },
+  progressText: {
+    textAlign: 'center',
   },
   submitButton: {
     marginTop: 24,

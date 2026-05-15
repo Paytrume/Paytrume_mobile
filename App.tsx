@@ -1,6 +1,7 @@
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { useAuthStore } from './src/store/auth.store';
 
 // keep expo-router entry import to bootstrap routing
 import 'expo-router/entry';
@@ -18,11 +19,19 @@ export default function App() {
     // add other variants as needed
   });
 
+  const { hydrate } = useAuthStore();
+
   useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
+    const initialize = async () => {
+      // Hydrate auth store to load token from AsyncStorage
+      await hydrate();
+      if (fontsLoaded) {
+        SplashScreen.hideAsync();
+      }
+    };
+
+    initialize();
+  }, [fontsLoaded, hydrate]);
 
   if (!fontsLoaded) {
     // while loading keep showing the splash screen

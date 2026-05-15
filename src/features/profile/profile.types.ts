@@ -36,3 +36,24 @@ export interface City {
   code: string;
   stateCode: string;
 }
+
+export type DocumentType = 'national_id' | 'voters_card' | 'drivers_license';
+
+export interface DocumentTypeOption {
+  id: DocumentType;
+  label: string;
+  icon?: string;
+}
+
+export interface VerificationDocument {
+  documentType: DocumentType | null;
+  frontImage: string | null;
+  backImage: string | null;
+  proofOfAddress: string | null;
+}
+
+export const DOCUMENT_TYPES: DocumentTypeOption[] = [
+  { id: 'national_id', label: 'National ID Card' },
+  { id: 'voters_card', label: "Voter's Card" },
+  { id: 'drivers_license', label: "Driver's Licence" },
+];

@@ -1,19 +1,19 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import MaskedTextInput from 'react-native-mask-input';
 import { Text } from '../../../components/typography/Text';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { theme } from '../../../theme';
-import { RegistrationFormData, registrationSchema } from '../auth.schema';
+import { useRegistration } from '../useRegistration';
 
 interface RegistrationFormProps {}
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = () => {
   const router = useRouter();
+  const { form, onSubmit, isLoading, error } = useRegistration();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
@@ -22,29 +22,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = () => {
     handleSubmit,
     formState: { errors, isValid },
     watch,
-  } = useForm<RegistrationFormData>({
-    resolver: zodResolver(registrationSchema),
-    mode: 'onBlur',
-    defaultValues: {
-      fullName: '',
-      email: '',
-      phone: '',
-      password: '',
-      confirmPassword: '',
-    },
-  });
-
-  const onSubmit = async (data: RegistrationFormData) => {
-    try {
-      // Mock API call - replace with actual registration API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // On success, navigate to next screen (e.g., email verification or home)
-      Alert.alert('Success', 'Account created successfully!', [{ text: 'OK', onPress: () => router.push('/(home)') }]);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create account. Please try again.');
-    }
-  };
+  } = form;
 
   const handleLoginPress = () => {
     router.push('/(auth)/login');
@@ -113,12 +91,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = () => {
                     value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}
-                    placeholder='(XXX) XXX-XXXX'
+                    placeholder='+1 (555) 123-4567 or any format'
                     placeholderTextColor={theme.colors.text.tertiary}
                     keyboardType='phone-pad'
-                    mask={['(', /\d/, /\d/, /\d/, ')', ' ', /\d/, /\d/, /\d/, '-', /\d/, /\d/, /\d/, /\d/]}
                     accessibilityLabel='Phone number'
-                    accessibilityHint='Enter your phone number'
+                    accessibilityHint='Enter your phone number in any format'
                   />
                 </View>
                 {error && isTouched && (
@@ -172,7 +149,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = () => {
         </View>
 
         <View style={styles.buttonContainer}>
-          <Button title={'Sign up'} onPress={handleSubmit(onSubmit)} style={styles.signUpButton} disabled={!isValid} />
+          <Button title={isLoading ? 'Creating Account...' : 'Sign up'} onPress={handleSubmit(onSubmit)} style={styles.signUpButton} disabled={!isValid || isLoading} />
+          {error && (
+            <Text variant='small' color={theme.colors.state.error} style={styles.errorMessage}>
+              {error}
+            </Text>
+          )}
         </View>
 
         <View style={styles.footerContainer}>
@@ -253,6 +235,10 @@ const styles = StyleSheet.create({
   },
   signUpButton: {
     width: '100%',
+  },
+  errorMessage: {
+    marginTop: 12,
+    textAlign: 'center',
   },
   footerContainer: {
     alignItems: 'center',

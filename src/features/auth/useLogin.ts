@@ -2,54 +2,42 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert } from 'react-native';
 import { useAuthStore } from '../../store/auth.store';
 import { showErrorToast } from '../../utils/toast';
-import { RegistrationFormData, registrationSchema } from './auth.schema';
+import { LoginFormData, loginSchema } from './auth.schema';
 
-export const useRegistration = () => {
+export const useLogin = () => {
   const router = useRouter();
-  const { signupSeller, loading, error } = useAuthStore();
+  const { loginSeller, loading } = useAuthStore();
   const [displayError, setDisplayError] = useState<string | null>(null);
 
-  const form = useForm<RegistrationFormData>({
-    resolver: zodResolver(registrationSchema),
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
     mode: 'onBlur',
     defaultValues: {
-      fullName: '',
       email: '',
-      phone: '',
       password: '',
-      confirmPassword: '',
     },
   });
 
-  const onSubmit = async (data: RegistrationFormData) => {
+  const onSubmit = async (data: LoginFormData) => {
     try {
       setDisplayError(null);
 
-      // Split full name into first and last name
-      const [first_name, ...lastNameParts] = data.fullName.split(' ');
-      const last_name = lastNameParts.join(' ') || '';
-
-      // Call the seller signup API through Zustand store
-      await signupSeller({
-        first_name,
-        last_name,
+      // Call the seller login API through Zustand store
+      await loginSeller({
         email: data.email,
         password: data.password,
-        mobile: data.phone,
+        trusted: false,
       });
 
-      // On success, navigate to next screen
-      Alert.alert('Success', 'Account created successfully!', [{ text: 'OK', onPress: () => router.push('/(tabs)') }]);
+      // On success, navigate to tabs
+      router.push('/(tabs)');
     } catch (err) {
       // Error is already set in the store
-      // Extract error information
       const storeError = useAuthStore.getState().error;
 
       if (storeError) {
-        console.log('Signup error:', storeError);
         if (storeError.type === 'network') {
           // Network error - display on screen, don't navigate
           setDisplayError(storeError.message);
@@ -59,7 +47,7 @@ export const useRegistration = () => {
         }
       } else {
         // Fallback error handling
-        const errorMessage = err instanceof Error ? err.message : 'Failed to create account';
+        const errorMessage = err instanceof Error ? err.message : 'Failed to login';
         setDisplayError(errorMessage);
       }
     }

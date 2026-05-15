@@ -1,48 +1,40 @@
 // src/app/receive-item.tsx
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { ChevronLeft, Scan, QrCode } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { Alert, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../components/typography/Text';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { useProductsStore } from '../store/products.store';
 import { theme } from '../theme';
 
 export default function ReceiveItemScreen() {
   const router = useRouter();
   const [transactionCode, setTransactionCode] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  // const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const { getSingleProduct, isLoading, error: errorState } = useProductsStore();
 
   const handleViewProductDetails = async () => {
     if (!transactionCode.trim()) {
       setError('Please enter a transaction code');
       return;
     }
-
     setError('');
-    setIsLoading(true);
 
     try {
-      // Mock API call to verify transaction code
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await getSingleProduct(transactionCode);
 
-      // Navigate to code details page
+      // Navigate to code details page only on success
       router.push({
         pathname: '/code-details',
         params: { code: transactionCode },
       });
     } catch (err) {
-      Alert.alert('Error', 'Invalid transaction code. Please check and try again.');
-    } finally {
-      setIsLoading(false);
+      Alert.alert('Error', errorState || 'Invalid transaction code. Please check and try again.');
     }
   };
-
-  // const handleScanQR = () => {
-  //   // In real app, open QR scanner
-  //   Alert.alert('Scan QR Code', 'Camera will open to scan payment QR code');
-  // };
 
   return (
     <SafeAreaView style={styles.container}>

@@ -1,4 +1,4 @@
-export type LinkType = 'product' | 'service';
+export type LinkType = 'goods' | 'services';
 export type PaymentType = 'one-time' | 'recurring';
 export type RecurringRate = '10' | '20' | '25' | '50' | '100';
 export type RecurringCategory = 'weekly' | 'bi-weekly' | 'monthly' | 'yearly' | 'custom';

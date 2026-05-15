@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
+    "@react-native-async-storage/async-storage": "^3.0.2",
     "@react-native-clipboard/clipboard": "^1.16.3",
     "@react-navigation/bottom-tabs": "^7.7.3",
     "@react-navigation/elements": "^2.8.1",
@@ -27,8 +28,10 @@
     "expo-glass-effect": "~55.0.7",
     "expo-image": "~55.0.5",
     "expo-image-picker": "^55.0.13",
+    "expo-linear-gradient": "~55.0.13",
     "expo-linking": "~55.0.7",
     "expo-router": "~55.0.3",
+    "expo-secure-store": "~55.0.13",
     "expo-sharing": "^55.0.12",
     "expo-splash-screen": "~55.0.10",
     "expo-status-bar": "~55.0.4",

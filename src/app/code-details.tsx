@@ -2,12 +2,13 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { AlertCircle, Check, ChevronLeft, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Alert, Modal, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View, Image } from 'react-native';
+import { Alert, Image, Linking, Modal, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../components/typography/Text';
 import { Button } from '../components/ui/Button';
+import { useProductsStore } from '../store/products.store';
 import { theme } from '../theme';
 
-import kettle from '../../assets/images/kettle.png';
+import ImageSkeleton from '@/components/ui/ImageSkeleton';
 
 interface DisputeReason {
   id: string;
@@ -27,25 +28,33 @@ export default function CodeDetailsScreen() {
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [isDisputing, setIsDisputing] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-
-  // Mock data - in real app, fetch by transaction code
-  const productData = {
-    title: 'Electric kettle',
-    amount: 'N15,000.00',
-    description: 'This is a description of what the work for the logo design job would entail.',
-    dateCreated: '25th Oct, 2025',
-    sellerEmail: 'examplecustomer@email.com',
-    transactionCode: (params.code as string) || '839heuf7',
-  };
+  const [imgLoading, setImgLoading] = useState(true);
+  const [loadingStates, setLoadingStates] = useState<{ [key: number]: boolean }>({});
+  const { product } = useProductsStore();
 
   const handleProceedToPayment = () => {
-    Alert.alert('Proceed to Payment', `You are about to pay ${productData.amount} for ${productData.title}`, [
+    const paymentLink = product?.payment_link;
+
+    if (!paymentLink) {
+      Alert.alert('Error', 'Payment link not available');
+      return;
+    }
+    Alert.alert('Proceed to Payment', `You are about to pay ${parseInt(product!.product_price).toLocaleString()} for ${product?.product_name}`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Continue',
-        onPress: () => {
-          // Navigate to payment screen
-          Alert.alert('Success', 'Payment initiated successfully');
+        onPress: async () => {
+          try {
+            const supported = await Linking.canOpenURL(paymentLink);
+
+            if (supported) {
+              await Linking.openURL(paymentLink);
+            } else {
+              Alert.alert('Error', 'Unable to open payment link');
+            }
+          } catch (err) {
+            Alert.alert('Error', 'Something went wrong while opening payment');
+          }
         },
       },
     ]);
@@ -151,16 +160,16 @@ export default function CodeDetailsScreen() {
         {/* Title and Amount */}
         <View style={styles.headerSection}>
           <Text variant='body' style={styles.title}>
-            {productData.title}
+            {product?.product_name}
           </Text>
           <Text variant='body' style={styles.amount}>
-            {productData.amount}
+            {parseInt(product!.product_price).toLocaleString()}
           </Text>
         </View>
 
         {/* Description */}
         <Text variant='body' color={theme.colors.text.secondary} style={styles.description}>
-          {productData.description}
+          {product?.product_description}
         </Text>
 
         {/* Date and Seller */}
@@ -170,7 +179,7 @@ export default function CodeDetailsScreen() {
               Date created
             </Text>
             <Text variant='body' style={styles.infoValue}>
-              {productData.dateCreated}
+              {product?.createdAt}
             </Text>
           </View>
           <View style={styles.divider} />
@@ -180,7 +189,7 @@ export default function CodeDetailsScreen() {
               Seller email
             </Text>
             <Text variant='body' style={styles.infoValue}>
-              {productData.sellerEmail}
+              {product?.seller_email}
             </Text>
           </View>
           <View style={styles.divider} />
@@ -190,14 +199,35 @@ export default function CodeDetailsScreen() {
               Transaction code
             </Text>
             <Text variant='body' style={styles.codeValue}>
-              {productData.transactionCode}
+              {product?._id}
             </Text>
           </View>
         </View>
 
-        <View style={styles.imageContainer}>
-          <Image source={kettle} resizeMode='contain' />
-        </View>
+        {Array.isArray(product?.product_images) && product?.product_images.length > 0 ? (
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
+            {product?.product_images.map((item: string, index: number) => (
+              <View style={styles.imageContainer} key={index}>
+                {/* Absolute positioned skeleton */}
+                {loadingStates[index] !== false && (
+                  <View style={StyleSheet.absoluteFillObject}>
+                    <ImageSkeleton width='100%' height='100%' />
+                  </View>
+                )}
+                <Image source={{ uri: item }} style={styles.sliderImage} resizeMode='contain' onLoadEnd={() => setLoadingStates((prev) => ({ ...prev, [index]: false }))} />
+              </View>
+            ))}
+          </ScrollView>
+        ) : product?.product_images ? (
+          <View style={styles.imageContainer}>
+            {imgLoading && (
+              <View style={StyleSheet.absoluteFillObject}>
+                <ImageSkeleton width='100%' height={200} />
+              </View>
+            )}
+            <Image source={{ uri: product?.product_images }} style={styles.singleImage} resizeMode='contain' onLoadEnd={() => setImgLoading(false)} />
+          </View>
+        ) : null}
 
         {/* Bottom Padding */}
         <View style={styles.bottomPadding} />
@@ -396,5 +426,16 @@ const styles = StyleSheet.create({
   headBg: { backgroundColor: `${theme.colors.primary}15` },
   imageContainer: {
     marginBottom: 24,
+  },
+  sliderImage: {
+    width: 300,
+    height: 200,
+    marginRight: 12,
+    borderRadius: 10,
+  },
+  singleImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 10,
   },
 });

@@ -12,8 +12,8 @@ import { usePasswordReset } from '../usePasswordReset';
 
 export const NewPasswordForm: React.FC = () => {
   const router = useRouter();
-  const { token } = (useLocalSearchParams() as any) || {};
-  const { resetPassword, isLoadingReset } = usePasswordReset();
+  const { email, otp } = (useLocalSearchParams() as any) || {};
+  const { resetPassword, isLoadingReset, error } = usePasswordReset();
 
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -29,8 +29,8 @@ export const NewPasswordForm: React.FC = () => {
   });
 
   const onSubmit = async (data: NewPasswordFormData) => {
-    if (token) {
-      await resetPassword(token as string, data.newPassword);
+    if (email && otp) {
+      await resetPassword(email as string, otp as string, data.newPassword);
     }
   };
 
@@ -94,6 +94,11 @@ export const NewPasswordForm: React.FC = () => {
 
         <View style={styles.buttonContainer}>
           <Button title={isLoadingReset ? 'Resetting...' : 'Log in'} onPress={handleSubmit(onSubmit)} style={styles.loginButton} disabled={!isValid || isLoadingReset} loading={isLoadingReset} />
+          {error && (
+            <Text variant='small' color={theme.colors.state.error} style={styles.errorMessage}>
+              {error}
+            </Text>
+          )}
         </View>
 
         <View style={styles.footerContainer}>
@@ -138,6 +143,10 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     width: '100%',
+  },
+  errorMessage: {
+    marginTop: 12,
+    textAlign: 'center',
   },
   footerContainer: {
     alignItems: 'center',
