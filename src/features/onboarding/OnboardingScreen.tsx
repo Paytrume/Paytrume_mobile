@@ -1,13 +1,11 @@
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Dimensions, FlatList, StyleSheet, View, ViewToken } from 'react-native';
+import { FlatList, StyleSheet, View, ViewToken } from 'react-native';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
 import { theme } from '../../theme';
 import { OnboardingSlide } from './components/OnboardingSlide';
 import { OnboardingSlide as OnboardingSlideType } from './onboarding.types';
-
-const { width } = Dimensions.get('window');
 
 const SLIDES: OnboardingSlideType[] = [
   {

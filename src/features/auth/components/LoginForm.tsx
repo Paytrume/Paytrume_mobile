@@ -1,65 +1,32 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { z } from 'zod';
+import { Controller } from 'react-hook-form';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../../../components/typography/Text';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { theme } from '../../../theme';
+import { useLogin } from '../useLogin';
 
-// Define login schema
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
+// no props needed for LoginForm
 
-type LoginFormData = z.infer<typeof loginSchema>;
-
-interface LoginFormProps {}
-
-export const LoginForm: React.FC<LoginFormProps> = () => {
+export const LoginForm: React.FC = () => {
   const router = useRouter();
+  const { form, onSubmit, isLoading, error } = useLogin();
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const {
     control,
     handleSubmit,
-    formState: { errors, isValid },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    mode: 'onBlur',
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
-
-  const onSubmit = async (data: LoginFormData) => {
-    try {
-      setIsLoading(true);
-
-      // Mock API call - replace with actual login API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // On success, navigate to home
-      Alert.alert('Success', 'Logged in successfully!', [{ text: 'OK', onPress: () => router.push('/(home)') }]);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to sign in. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    formState: { isValid },
+  } = form;
 
   const handleRegisterPress = () => {
     router.push('/(auth)/register');
   };
 
   const handleForgotPasswordPress = () => {
-    // Open forgot password modal or navigate to reset password screen
-    Alert.alert('Forgot Password', 'Password reset functionality would be displayed here.');
+    router.push('/(auth)/forgot-password');
   };
 
   return (
@@ -122,6 +89,11 @@ export const LoginForm: React.FC<LoginFormProps> = () => {
 
         <View style={styles.buttonContainer}>
           <Button title={isLoading ? 'Signing in...' : 'Sign in'} onPress={handleSubmit(onSubmit)} style={styles.signInButton} disabled={!isValid || isLoading} loading={isLoading} />
+          {error && (
+            <Text variant='small' color={theme.colors.state.error} style={styles.errorMessage}>
+              {error}
+            </Text>
+          )}
         </View>
 
         <View style={styles.footerContainer}>
@@ -173,6 +145,10 @@ const styles = StyleSheet.create({
   },
   signInButton: {
     width: '100%',
+  },
+  errorMessage: {
+    marginTop: 12,
+    textAlign: 'center',
   },
   footerContainer: {
     alignItems: 'center',
