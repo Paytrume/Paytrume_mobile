@@ -96,7 +96,8 @@ export const usePayoutStore = create<PayoutState>((set, get) => ({
     try {
       const response = await resolveAccountAPI(bankCode, accountNumber);
       let account: AccountResolution | null = null;
-      if (response.success && response.data) {
+      // Handle response with status field (status: true)
+      if ((response.status || response.success) && response.data) {
         account = response.data;
       }
       set({ resolvedAccount: account, isLoading: false });

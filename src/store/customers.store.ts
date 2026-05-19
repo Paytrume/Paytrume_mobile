@@ -1,7 +1,6 @@
 // src/store/customers.store.ts
 import { ArrowUpRight, Wallet } from 'lucide-react-native';
 import React from 'react';
-import { theme } from '../theme';
 import { create } from 'zustand';
 import {
   getCustomerPurchaseCount,
@@ -13,6 +12,7 @@ import {
   markNotificationAsRead,
   searchCustomersByEmail,
 } from '../services/api';
+import { theme } from '../theme';
 import { BalanceCard, Customer, CustomersState, CustomerTransaction, CustomerTransactionSummary, Notification, UserBalanceData } from '../types/customer.types';
 
 export const useCustomersStore = create<CustomersState>((set, get) => ({
@@ -226,46 +226,59 @@ export const useCustomersStore = create<CustomersState>((set, get) => ({
       const response = await getUserBalances();
 
       if (response.success && response.data) {
-        const data = response.data;
+        const { balance, available_balance, revenue, total_payout, total_withdrawn, currency } = response.data;
 
-        // Calculate available balance
-        const availableBalance = (data.balance || 0) - (data.total_pending_withdrawals || 0);
-
-        // Create balance cards
+        // Create balance cards in the order: balance, available_balance, total_payout, revenue, total_withdrawn
         const balanceCards: BalanceCard[] = [
           {
             id: '1',
-            title: 'Available to Withdraw',
-            amount: `${data.currency || 'NGN'} ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            subtitle: 'Withdraw funds →',
+            title: 'Escrow Balance',
+            amount: `${currency || 'NGN'} ${(balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            subtitle: 'Securely held in escrow',
             icon: React.createElement(Wallet, { size: 24, color: theme.colors.primary }),
             color: theme.colors.primary,
           },
           {
             id: '2',
-            title: 'Total Received',
-            amount: `${data.currency || 'NGN'} ${(data.total_received || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            subtitle: 'All time earnings',
-            icon: React.createElement(ArrowUpRight, { size: 24, color: '#10B981' }),
+            title: 'Available to Withdraw',
+            amount: `${currency || 'NGN'} ${(available_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            subtitle: 'Ready for withdrawal →',
+            icon: React.createElement(Wallet, { size: 24, color: '#10B981' }),
             color: '#10B981',
           },
           {
             id: '3',
-            title: 'Total Withdrawn',
-            amount: `${data.currency || 'NGN'} ${(data.total_withdrawn || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            subtitle: 'Withdrawn to bank',
+            title: 'Total Payout',
+            amount: `${currency || 'NGN'} ${(total_payout || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            subtitle: 'Total withdrawn value',
+            icon: React.createElement(ArrowUpRight, { size: 24, color: '#F59E0B' }),
+            color: '#F59E0B',
+          },
+          {
+            id: '4',
+            title: 'Net Revenue',
+            amount: `${currency || 'NGN'} ${(revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            subtitle: 'After fees',
             icon: React.createElement(Wallet, { size: 24, color: '#8B5CF6' }),
             color: '#8B5CF6',
+          },
+          {
+            id: '5',
+            title: 'Withdrawal Count',
+            amount: `${(total_withdrawn || 0).toLocaleString()}`,
+            subtitle: 'Number of withdrawals',
+            icon: React.createElement(ArrowUpRight, { size: 24, color: '#3B82F6' }),
+            color: '#3B82F6',
           },
         ];
 
         const userBalanceData: UserBalanceData = {
-          balance: data.balance || 0,
-          totalWithdrawn: data.total_withdrawn || 0,
-          totalReceived: data.total_received || 0,
-          pendingWithdrawals: data.total_pending_withdrawals || 0,
-          availableBalance: availableBalance,
-          currency: data.currency || 'NGN',
+          balance: balance || 0,
+          totalWithdrawn: total_withdrawn || 0,
+          totalReceived: revenue || 0,
+          pendingWithdrawals: 0,
+          availableBalance: available_balance || 0,
+          currency: currency || 'NGN',
         };
 
         set({

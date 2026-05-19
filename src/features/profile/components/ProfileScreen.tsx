@@ -201,13 +201,13 @@ export const ProfileScreen: React.FC = () => {
 
       {/* Finance & Security Section */}
       <View style={styles.section}>
-        <Text variant='h2' style={styles.sectionTitle}>
+        <Text variant='h3' style={styles.sectionTitle}>
           Finance & Security
         </Text>
 
-        {renderMenuItem(<CreditCard size={20} color={theme.colors.primary} />, 'Payment Methods', 'Manage bank accounts for withdrawal', () => {})}
+        {renderMenuItem(<CreditCard size={20} color={theme.colors.primary} />, 'Payment Methods', 'Manage bank accounts for withdrawal', () => router.push('/(profile)/payment-methods'))}
 
-        {renderMenuItem(<Lock size={20} color={theme.colors.primary} />, 'Security Settings', 'Password, 2FA, and sessions', () => {})}
+        {renderMenuItem(<Lock size={20} color={theme.colors.primary} />, 'Security Settings', 'Password, 2FA, and sessions', () => router.push('/(profile)/security-settings'))}
       </View>
 
       {/* Logout Button */}

@@ -1,12 +1,14 @@
 // src/app/(tabs)/index.tsx
 import { useCustomersStore } from '@/store/customers.store';
 import { useRouter } from 'expo-router';
-import { ArrowUpRight, Bell, CheckCircle, CircleQuestionMark, Clock4, Inbox, Plus, Share2, ShieldCheck, Wallet } from 'lucide-react-native';
+import { Bell, CheckCircle, CircleQuestionMark, Clock4, Inbox, Plus, Share2, ShieldCheck } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { Extrapolate, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Text } from '../../components/typography/Text';
 import { Screen } from '../../components/ui/Screen';
+import SkeletonCard from '../../components/ui/SkeletonCard';
+import SkeletonListItem from '../../components/ui/SkeletonListItem';
 import { useAuthStore } from '../../store/auth.store';
 import { useProductsStore } from '../../store/products.store';
 import { theme } from '../../theme';
@@ -98,13 +100,28 @@ export default function HomeScreen() {
   const { products, fetchProducts, loadMoreProducts, isLoading, hasNextPage } = useProductsStore();
   const { userBalance, isLoading: balLoad, balanceCards } = useCustomersStore();
   const [activeFilter, setActiveFilter] = useState('All');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   // Fetch products on mount
   useEffect(() => {
-    console.log('hello')
-    fetchProducts(0);
-    userBalance();
+    const loadData = async () => {
+      await fetchProducts(0);
+      await userBalance();
+      setInitialLoad(false);
+    };
+    loadData();
   }, []);
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchProducts(0);
+      await userBalance();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -197,11 +214,13 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
-  console.log(typeof user)
-
   return (
     <Screen style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} onMomentumScrollEnd={handleScrollEndReached}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        onMomentumScrollEnd={handleScrollEndReached}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
+      >
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -209,7 +228,7 @@ export default function HomeScreen() {
               Welcome back,
             </Text>
             <Text variant='h2' style={styles.userName}>
-              {user?.includes('undefined') ? 'Buddy 😁': user}
+              {user?.includes('undefined') ? 'Buddy 😁' : user}
             </Text>
           </View>
           <TouchableOpacity style={styles.searchButton}>
@@ -218,18 +237,24 @@ export default function HomeScreen() {
         </View>
 
         {/* Balance Cards Carousel */}
-        <Animated.FlatList
-          data={balanceCards}
-          renderItem={renderBalanceCard}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={CARD_WIDTH + CARD_SPACING}
-          decelerationRate='fast'
-          contentContainerStyle={styles.carouselContainer}
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-        />
+        {balLoad ? (
+          <View style={styles.skeletonCarouselContainer}>
+            <SkeletonCard width={CARD_WIDTH} height={CARD_HEIGHT} borderRadius={16} />
+          </View>
+        ) : (
+          <Animated.FlatList
+            data={balanceCards}
+            renderItem={renderBalanceCard}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={CARD_WIDTH + CARD_SPACING}
+            decelerationRate='fast'
+            contentContainerStyle={styles.carouselContainer}
+            onScroll={scrollHandler}
+            scrollEventThrottle={16}
+          />
+        )}
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
@@ -264,7 +289,15 @@ export default function HomeScreen() {
 
         {/* Recent Links List */}
         <View style={styles.linksList}>
-          {products.length > 0 ? (
+          {initialLoad && isLoading ? (
+            // Show skeleton loaders during initial load
+            <>
+              <SkeletonListItem />
+              <SkeletonListItem />
+              <SkeletonListItem />
+            </>
+          ) : products.length > 0 ? (
+            // Show products when available
             products.map((link) => (
               <View key={link._id}>
                 {renderRecentLink({ item: link }, () =>
@@ -276,6 +309,7 @@ export default function HomeScreen() {
               </View>
             ))
           ) : (
+            // Show empty state only after loading is complete
             <View style={styles.imageContainer}>
               <Image source={empty} style={styles.image} resizeMode='contain' />
               <Text variant='small' color={theme.colors.text.secondary} style={{ marginTop: 16 }}>
@@ -324,6 +358,13 @@ const styles = StyleSheet.create({
     gap: CARD_SPACING,
     paddingRight: 48,
     marginBottom: 32,
+  },
+  skeletonCarouselContainer: {
+    paddingLeft: 24,
+    gap: CARD_SPACING,
+    paddingRight: 48,
+    marginBottom: 32,
+    justifyContent: 'center',
   },
   card: {
     width: CARD_WIDTH,
