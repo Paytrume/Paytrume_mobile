@@ -71,7 +71,7 @@ export default function HistoryScreen() {
       case 'completed':
         return 'COMPLETED';
       default:
-        return status;
+        return status.toUpperCase();
     }
   };
 
