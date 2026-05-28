@@ -9,6 +9,7 @@ import { useProductsStore } from '../store/products.store';
 import { theme } from '../theme';
 
 import ImageSkeleton from '@/components/ui/ImageSkeleton';
+import { formatDateTime, formatDateTime2, truncateString } from '@/utils/string';
 
 interface DisputeReason {
   id: string;
@@ -67,9 +68,6 @@ export default function CodeDetailsScreen() {
     }
 
     setIsDisputing(true);
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     setIsDisputing(false);
     setShowDisputeSheet(false);
@@ -134,6 +132,8 @@ export default function CodeDetailsScreen() {
     </Modal>
   );
 
+  console.log('Product details:', product);
+
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen
@@ -179,7 +179,7 @@ export default function CodeDetailsScreen() {
               Date created
             </Text>
             <Text variant='body' style={styles.infoValue}>
-              {product?.createdAt}
+              {formatDateTime2(`${product!.createdAt}`).date}
             </Text>
           </View>
           <View style={styles.divider} />
@@ -199,7 +199,7 @@ export default function CodeDetailsScreen() {
               Transaction code
             </Text>
             <Text variant='body' style={styles.codeValue}>
-              {product?._id}
+              {truncateString(product!._id, 10)}
             </Text>
           </View>
         </View>

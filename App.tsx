@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useAuthStore } from './src/store/auth.store';
+import { useRouter } from 'expo-router';
 
 // keep expo-router entry import to bootstrap routing
 import 'expo-router/entry';
@@ -10,6 +11,7 @@ import 'expo-router/entry';
 SplashScreen.preventAutoHideAsync();
 
 export default function App() {
+  const router = useRouter();
   const [fontsLoaded] = useFonts({
     // make sure you add the corresponding .ttf files to `assets/fonts`
     // you can download Plus Jakarta Sans from Google Fonts and drop
@@ -19,7 +21,7 @@ export default function App() {
     // add other variants as needed
   });
 
-  const { hydrate } = useAuthStore();
+  const { hydrate, token } = useAuthStore();
 
   useEffect(() => {
     const initialize = async () => {
@@ -30,8 +32,12 @@ export default function App() {
       }
     };
 
+    if(!token) {
+      router.replace('/(auth)/login');
+    }
+
     initialize();
-  }, [fontsLoaded, hydrate]);
+  }, [fontsLoaded, hydrate, token]);
 
   if (!fontsLoaded) {
     // while loading keep showing the splash screen

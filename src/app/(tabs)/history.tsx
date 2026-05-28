@@ -7,12 +7,12 @@ import { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimate
 import { Text } from '../../components/typography/Text';
 import { useProductsStore } from '../../store/products.store';
 import { theme } from '../../theme';
+import SkeletonListItem from '../../components/ui/SkeletonListItem';
 
 //images
 import empty from '../../../assets/images/empty.png';
 import { Input } from '../../components/ui/Input';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
-import { useAuthStore } from '@/store/auth.store';
 
 const { width } = Dimensions.get('window');
 
@@ -33,9 +33,19 @@ export default function HistoryScreen() {
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('As a seller');
   const [showHistoryModel, setShowHistoryModal] = useState(false);
-  const { products, loadMoreProducts, isLoading, hasNextPage } = useProductsStore();
-  const { profile } = useAuthStore();
-  const [modeProduct, setModeProduct] = useState(products);
+  
+  const {
+    products,
+    isLoading,
+    hasNextPage,
+    loadMoreProducts,
+    fetchProducts,
+    buyerProducts,
+    buyerIsLoading,
+    buyerHasNextPage,
+    loadMoreBuyerProducts,
+    fetchBuyerProducts,
+  } = useProductsStore();
 
   const statusFilters = ['All', 'Awaiting Pay', 'In Escrow', 'Completed'];
 
@@ -91,8 +101,14 @@ export default function HistoryScreen() {
     const paddingOffset = 200; // Load more when user is 200px from bottom
 
     if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingOffset) {
-      if (hasNextPage && !isLoading) {
-        loadMoreProducts();
+      if (mode === 'As a seller') {
+        if (hasNextPage && !isLoading) {
+          loadMoreProducts();
+        }
+      } else {
+        if (buyerHasNextPage && !buyerIsLoading) {
+          loadMoreBuyerProducts();
+        }
       }
     }
   };
@@ -149,15 +165,12 @@ export default function HistoryScreen() {
   );
 
   useEffect(() => {
-    console.log(mode) 
-    if(mode === 'As a seller') {
-      const data = products.filter((item) => item.seller_email === profile?.email)
-      setModeProduct(data)
+    if (mode === 'As a seller') {
+      fetchProducts(0);
     } else {
-      const data = products.filter((item) => item.buyer_email === profile?.email);
-      setModeProduct(data)
+      fetchBuyerProducts(0);
     }
-  }, [mode])
+  }, [mode, fetchProducts, fetchBuyerProducts]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -192,26 +205,77 @@ export default function HistoryScreen() {
 
         {/* Recent Links List */}
         <View style={styles.linksList}>
-          {modeProduct.length > 0 ? (
-            modeProduct.map((link) => (
-              <View key={link._id}>
-                {renderRecentLink({ item: link }, () =>
-                  router.push({
-                    pathname: '/share-link',
-                    params: { link: JSON.stringify(link) },
-                  }),
-                )}
+          {mode === 'As a seller' ? (
+            // Seller products
+            isLoading && products.length === 0 ? (
+              // Show skeleton loaders during initial load
+              <>
+                <SkeletonListItem />
+                <SkeletonListItem />
+                <SkeletonListItem />
+              </>
+            ) : products.length > 0 ? (
+              // Show products when available
+              products.map((link) => (
+                <View key={link._id}>
+                  {renderRecentLink({ item: link }, () =>
+                    router.push({
+                      pathname: '/share-link',
+                      params: { link: JSON.stringify(link) },
+                    }),
+                  )}
+                </View>
+              ))
+            ) : (
+              // Show empty state only after loading is complete
+              <View style={styles.imageContainer}>
+                <Image source={empty} style={styles.image} resizeMode='contain' />
+                <Text variant='small' color={theme.colors.text.secondary} style={{ marginTop: 16 }}>
+                  Nothing here yet.
+                </Text>
               </View>
-            ))
+            )
           ) : (
-            <View style={styles.imageContainer}>
-              <Image source={empty} style={styles.image} resizeMode='contain' />
-              <Text variant='small' color={theme.colors.text.secondary} style={{ marginTop: 16 }}>
-                Nothing here yet.
-              </Text>
-            </View>
+            // Buyer products
+            buyerIsLoading && buyerProducts.length === 0 ? (
+              // Show skeleton loaders during initial load
+              <>
+                <SkeletonListItem />
+                <SkeletonListItem />
+                <SkeletonListItem />
+              </>
+            ) : buyerProducts.length > 0 ? (
+              // Show products when available
+              buyerProducts.map((link) => (
+                <View key={link._id}>
+                  {renderRecentLink({ item: link }, () =>
+                    router.push({
+                      pathname: '/share-link',
+                      params: { link: JSON.stringify(link) },
+                    }),
+                  )}
+                </View>
+              ))
+            ) : (
+              // Show empty state only after loading is complete
+              <View style={styles.imageContainer}>
+                <Image source={empty} style={styles.image} resizeMode='contain' />
+                <Text variant='small' color={theme.colors.text.secondary} style={{ marginTop: 16 }}>
+                  Nothing here yet.
+                </Text>
+              </View>
+            )
           )}
         </View>
+
+        {/* Loading indicator for pagination */}
+        {(isLoading || buyerIsLoading) && (
+          <View style={styles.loadingContainer}>
+            <Text variant='small' color={theme.colors.text.secondary}>
+              Loading more...
+            </Text>
+          </View>
+        )}
 
         {/* Bottom Padding */}
         <View style={styles.bottomPadding} />
@@ -347,5 +411,10 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.primary,
     width: '100%',
     paddingBottom: 20,
+  },
+  loadingContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -80,9 +80,10 @@ interface AuthState {
   clearError: () => void;
   logout: () => Promise<void>;
   hydrate: () => Promise<void>;
+  isSeller: (data: string) => boolean;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   profile: null,
@@ -298,6 +299,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  // its seller
+  isSeller: (data) => {
+    const { profile } = get();
+    return data === profile?.email;
+  },
+
   // Clear token, user, and profile from both store and storage
   logout: async () => {
     try {
@@ -309,6 +316,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         error: null,
         loading: false,
       });
+      //send to login page on mobile
     } catch (error) {
       console.error('Failed to logout:', error);
     }

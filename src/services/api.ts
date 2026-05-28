@@ -1,4 +1,3 @@
-import { useAuthStore } from '@/store/auth.store';
 import axios from 'axios';
 import { removeStorageItems } from '../utils/storage';
 import { setupApiLogger } from './logger';
@@ -19,10 +18,12 @@ setupApiLogger(api);
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    console.log('API error:', error);
     if (error.response?.status === 401) {
       // Token expired or invalid
       await removeStorageItems([TOKEN_KEY, USER_KEY, PROFILE_KEY]);
-      // You can also trigger a logout event here
+      // Lazy load auth store to avoid circular dependency
+      const { useAuthStore } = await import('@/store/auth.store');
       useAuthStore.getState().logout();
     }
     return Promise.reject(error);
@@ -93,7 +94,17 @@ export const updateSellerProfile = async (updateData: { first_name?: string; las
 // Get Seller Products API
 export const getSellerProducts = async (page: number = 0) => {
   try {
-    const response = await api.get('/products', { params: { page } });
+    const response = await api.get('/products/seller', { params: { page } });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get Buyer Products API
+export const getBuyerProducts = async (page: number = 0) => {
+  try {
+    const response = await api.get('/products/buyer', { params: { page } });
     return response.data;
   } catch (error) {
     throw error;
@@ -309,7 +320,7 @@ export const getPayoutDestinationsAPI = async () => {
 };
 
 // Add Payout Destination
-export const addPayoutDestinationAPI = async (payload: { bank_code: string; account_number: string; account_name?: string }) => {
+export const addPayoutDestinationAPI = async (payload: { bank_code: string; acct_num: string; acct_name?: string }) => {
   try {
     const response = await api.post('/misc/seller/payouts/bank/add', payload, {
       headers: { 'Content-Type': 'application/json' },
@@ -428,10 +439,20 @@ export const deleteDisputeAPI = async (id: string) => {
   }
 };
 
-// Delete Dispute
+// Get User Balances
 export const getUserBalances = async () => {
   try {
     const response = await api.get(`/customers/balances`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get Seller Transactions
+export const getSellerTransactions = async () => {
+  try {
+    const response = await api.get('/transactions/seller');
     return response.data;
   } catch (error) {
     throw error;

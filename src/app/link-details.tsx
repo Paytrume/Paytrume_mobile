@@ -1,19 +1,23 @@
 import ImageSkeleton from '@/components/ui/ImageSkeleton';
+import { useAuthStore } from '@/store/auth.store';
+import { useProductsStore } from '@/store/products.store';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, CircleCheck, Copy, Mail, Share2 } from 'lucide-react-native';
+import { ChevronLeft, CircleCheck, Copy, Mail, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from '../components/typography/Text';
 import { Button } from '../components/ui/Button';
 import { theme } from '../theme';
+import { formatDateTime, formatDateTime2 } from '@/utils/string';
 
 // image mocks
 
 export default function LinkDetailsScreen() {
+  const { isSeller } = useAuthStore();
+  const { removeProduct } = useProductsStore();
   const router = useRouter();
   const { link } = useLocalSearchParams();
-  console.log(link)
   const parsedLink = link ? JSON.parse(link as string) : null;
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -21,7 +25,6 @@ export default function LinkDetailsScreen() {
   const [showTrackModal, setShowTrackModal] = useState(false);
   const [imgLoading, setImgLoading] = useState(true);
   const [loadingStates, setLoadingStates] = useState<{ [key: number]: boolean }>({});
-
 
   const handleCopy = async (text: string, type: 'link' | 'code') => {
     await Clipboard.setStringAsync(text);
@@ -34,11 +37,23 @@ export default function LinkDetailsScreen() {
     }
   };
 
-  const handleShare = () => {
-    router.push({
-      pathname: '/share-link',
-      params: { link: JSON.stringify(link) },
-    });
+  const handleDeleteProduct = () => {
+    Alert.alert('Delete product', `Are you sure you want to delete "${parsedLink.title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // API call to delete link
+            await removeProduct(parsedLink._id);
+            Alert.alert('Deleted', 'Link has been deleted');
+          } catch (error) {
+            Alert.alert('Error', 'Failed to delete product');
+          }
+        },
+      },
+    ]);
   };
 
   const handleResendLink = () => {
@@ -120,7 +135,7 @@ export default function LinkDetailsScreen() {
   );
 
   useEffect(() => {
-    console.log(parsedLink.product_images);
+    console.log(parsedLink);
   }, []);
 
   return (
@@ -136,13 +151,14 @@ export default function LinkDetailsScreen() {
               <ChevronLeft size={24} color={theme.colors.primary} />
             </TouchableOpacity>
           ),
-          headerRight: () => (
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={handleShare} style={styles.headerButton}>
-                <Share2 size={20} color={theme.colors.primary} />
-              </TouchableOpacity>
-            </View>
-          ),
+          headerRight: () =>
+            isSeller(parsedLink.seller_email) && (
+              <View style={styles.headerActions}>
+                <TouchableOpacity onPress={handleDeleteProduct} style={styles.headerButton}>
+                  <Trash2 size={20} color={theme.colors.primary} />
+                </TouchableOpacity>
+              </View>
+            ),
         }}
       />
 
@@ -169,7 +185,7 @@ export default function LinkDetailsScreen() {
               Date created
             </Text>
             <Text variant='body' style={styles.infoValue}>
-              {parsedLink.createdAt}
+              {formatDateTime2(parsedLink.createdAt).date}
             </Text>
           </View>
           <View style={styles.divider} />

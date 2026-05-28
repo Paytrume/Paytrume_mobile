@@ -1,6 +1,5 @@
 // src/services/logger.ts
 import { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import { useAuthStore } from '../store/auth.store';
 
 // Logger configuration
 const LOGGER_CONFIG = {
@@ -54,19 +53,19 @@ const generateRequestId = (): string => {
 // Fixed sanitizeData function
 const sanitizeData = (data: any): any => {
   if (!data) return data;
-  
+
   // Don't try to sanitize non-objects
   if (typeof data !== 'object') return data;
-  
+
   const sensitiveFields = ['password', 'confirmPassword', 'token', 'authorization'];
   const sanitized = { ...data };
-  
-  sensitiveFields.forEach(field => {
+
+  sensitiveFields.forEach((field) => {
     if (sanitized[field]) {
       sanitized[field] = '***REDACTED***';
     }
   });
-  
+
   return sanitized;
 };
 
@@ -183,6 +182,8 @@ export const setupApiLogger = (axiosInstance: AxiosInstance): void => {
       (config as any).requestId = requestId;
 
       // Add Authorization header if token exists in store
+      // Lazy load auth store to avoid circular dependency
+      const { useAuthStore } = await import('../store/auth.store');
       const token = useAuthStore.getState().token;
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;

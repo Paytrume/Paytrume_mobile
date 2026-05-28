@@ -84,15 +84,15 @@ export const AddBankModal: React.FC<AddBankModalProps> = ({ visible, onClose, on
     try {
       await addPayoutDestination({
         bank_code: selectedBank.code,
-        account_number: resolvedAccount.account_number,
-        account_name: resolvedAccount.account_name,
+        acct_num: resolvedAccount.account_number,
+        acct_name: resolvedAccount.account_name,
       });
 
       Alert.alert('Success', 'Bank account added successfully');
       setShowResolveModal(false);
       resetForm();
       onSuccess();
-    } catch(error: any) {
+    } catch (error: any) {
       let errorMessage = 'Failed to add bank account. Please try again.';
       if (error.response?.data) {
         errorMessage = error.response.data.message || errorMessage;
@@ -128,7 +128,7 @@ export const AddBankModal: React.FC<AddBankModalProps> = ({ visible, onClose, on
             <View style={styles.spacer} />
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps='handled'>
             {/* Step 1: Select Bank */}
             <View style={styles.section}>
               <Text variant='body' style={styles.label}>
@@ -155,8 +155,7 @@ export const AddBankModal: React.FC<AddBankModalProps> = ({ visible, onClose, on
                       </TouchableOpacity>
                     )}
                     keyExtractor={(item) => item.code}
-                    scrollEnabled={true}
-                    nestedScrollEnabled={true}
+                    scrollEnabled={false}
                     maxToRenderPerBatch={20}
                   />
                 </View>

@@ -6,6 +6,7 @@ import {
   // editProduct,
   deleteProduct,
   filterProducts,
+  getBuyerProducts,
   getOneProduct,
   getSellerProducts,
   requestRefund,
@@ -13,6 +14,7 @@ import {
   searchProducts,
   updateProduct,
 } from '../services/api';
+import { getStatus } from '@/utils/string';
 
 export interface Product {
   _id: string;
@@ -40,6 +42,16 @@ export interface ProductsState {
   hasNextPage: boolean;
   product?: Product | null;
 
+  // Buyer Products State
+  buyerProducts: Product[];
+  buyerTotalProducts: number;
+  buyerTotalPages: number;
+  buyerCurrentPage: number;
+  buyerItemsPerPage: number;
+  buyerIsLoading: boolean;
+  buyerError: string | null;
+  buyerHasNextPage: boolean;
+
   // Actions
   fetchProducts: (page?: number) => Promise<void>;
   loadMoreProducts: () => Promise<void>;
@@ -56,6 +68,11 @@ export interface ProductsState {
   refundTransaction: (id: string, payload: any) => Promise<void>;
   message: string | null;
   clearMessage: () => void;
+
+  // Buyer Products Actions
+  fetchBuyerProducts: (page?: number) => Promise<void>;
+  loadMoreBuyerProducts: () => Promise<void>;
+  resetBuyerProducts: () => void;
 }
 
 export const useProductsStore = create<ProductsState>((set, get) => ({
@@ -69,8 +86,20 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   hasNextPage: false,
   message: null,
 
+  // Buyer Products Initial State
+  buyerProducts: [],
+  buyerTotalProducts: 0,
+  buyerTotalPages: 0,
+  buyerCurrentPage: 0,
+  buyerItemsPerPage: 100,
+  buyerIsLoading: false,
+  buyerError: null,
+  buyerHasNextPage: false,
+
   fetchProducts: async (page = 0) => {
-    set({ isLoading: true, error: null });
+    // Clear products when starting fresh fetch (page 0)
+    const shouldClear = page === 0;
+    set({ isLoading: true, error: null, ...(shouldClear && { products: [] }) });
     try {
       const response = await getSellerProducts(page);
 
@@ -80,7 +109,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         title: item.product_name,
         description: item.product_description || 'No description',
         amount: item.product_price,
-        status: item.customer_paid?.status ? 'completed' : item.payment_type === 'recurring' ? 'in_escrow' : 'awaiting_pay',
+        status: getStatus(item),
         date: item.createdAt,
         payment_link: item.payment_link,
         type: item.type,
@@ -101,7 +130,12 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch products';
-      set({ error: errorMessage, isLoading: false });
+      // Clear products on error if this was a fresh fetch (page 0)
+      set({
+        error: errorMessage,
+        isLoading: false,
+        ...(page === 0 && { products: [] }),
+      });
     }
   },
 
@@ -123,7 +157,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         title: item.product_name,
         description: item.product_description || 'No description',
         amount: item.product_price,
-        status: item.customer_paid?.status ? 'completed' : item.payment_type === 'recurring' ? 'in_escrow' : 'awaiting_pay',
+        status: getStatus(item),
         date: item.createdAt,
         payment_link: item.payment_link,
         type: item.type,
@@ -151,7 +185,9 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await getOneProduct(productId);
-      set({ product: response.data, isLoading: false });
+      const data = response.data;
+      data.status = getStatus(data);
+      set({ product: data, isLoading: false });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch product';
       set({ error: errorMessage, isLoading: false });
@@ -237,7 +273,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         title: item.product_name,
         description: item.product_description || 'No description',
         amount: item.product_price,
-        status: item.customer_paid?.status ? 'completed' : item.payment_type === 'recurring' ? 'in_escrow' : 'awaiting_pay',
+        status: getStatus(item),
         date: item.createdAt,
         payment_link: item.payment_link,
         type: item.type,
@@ -269,7 +305,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         title: item.product_name,
         description: item.product_description || 'No description',
         amount: item.product_price,
-        status: item.customer_paid?.status ? 'completed' : item.payment_type === 'recurring' ? 'in_escrow' : 'awaiting_pay',
+        status: getStatus(item),
         date: item.createdAt,
         payment_link: item.payment_link,
         type: item.type,
@@ -350,6 +386,98 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       isLoading: false,
       error: null,
       hasNextPage: false,
+    });
+  },
+
+  // Buyer Products Actions
+  fetchBuyerProducts: async (page = 0) => {
+    set({ buyerIsLoading: true, buyerError: null });
+    try {
+      const response = await getBuyerProducts(page);
+
+      // Map backend response fields to frontend Product interface
+      const mappedProducts = (response.data || []).map((item: any) => ({
+        _id: item._id,
+        title: item.product_name,
+        description: item.product_description || 'No description',
+        amount: item.product_price,
+        status: getStatus(item),
+        date: item.createdAt,
+        payment_link: item.payment_link,
+        type: item.type,
+        product_images: item.product_images,
+        customer_paid: item.customer_paid,
+        createdAt: item.createdAt,
+        ...item, // Include all other fields
+      }));
+
+      set({
+        buyerProducts: mappedProducts,
+        buyerTotalProducts: response.totalProducts || 0,
+        buyerTotalPages: response.totalPages || 0,
+        buyerCurrentPage: response.currentPage || page,
+        buyerItemsPerPage: response.itemsPerPage || 100,
+        buyerHasNextPage: !!response.next,
+        buyerIsLoading: false,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch buyer products';
+      set({ buyerError: errorMessage, buyerIsLoading: false });
+    }
+  },
+
+  loadMoreBuyerProducts: async () => {
+    const { buyerCurrentPage, buyerTotalPages, buyerProducts } = get();
+
+    // Don't load if already at last page or loading
+    if (buyerCurrentPage >= buyerTotalPages - 1 || get().buyerIsLoading) {
+      return;
+    }
+
+    try {
+      set({ buyerIsLoading: true });
+      const response = await getBuyerProducts(buyerCurrentPage + 1);
+
+      // Map backend response fields to frontend Product interface
+      const mappedProducts = (response.data || []).map((item: any) => ({
+        _id: item._id,
+        title: item.product_name,
+        description: item.product_description || 'No description',
+        amount: item.product_price,
+        status: getStatus(item),
+        date: item.createdAt,
+        payment_link: item.payment_link,
+        type: item.type,
+        product_images: item.product_images,
+        customer_paid: item.customer_paid,
+        createdAt: item.createdAt,
+        ...item,
+      }));
+
+      set({
+        buyerProducts: [...buyerProducts, ...mappedProducts],
+        buyerTotalProducts: response.totalProducts || 0,
+        buyerTotalPages: response.totalPages || 0,
+        buyerCurrentPage: response.currentPage || buyerCurrentPage + 1,
+        buyerHasNextPage: !!response.next,
+        buyerIsLoading: false,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load more buyer products';
+      set({ buyerError: errorMessage, buyerIsLoading: false });
+    }
+  },
+
+  resetBuyerProducts: () => {
+    set({
+      buyerProducts: [],
+      buyerTotalProducts: 0,
+      buyerTotalPages: 0,
+      buyerCurrentPage: 0,
+      buyerItemsPerPage: 100,
+      buyerIsLoading: false,
+      buyerError: null,
+      buyerHasNextPage: false,
     });
   },
 }));

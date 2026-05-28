@@ -7,6 +7,7 @@ import { Alert, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-n
 import { Text } from '../components/typography/Text';
 import { Button } from '../components/ui/Button';
 import { theme } from '../theme';
+import { truncateString } from '@/utils/string';
 
 export default function ShareLinkScreen() {
   const router = useRouter();
@@ -116,7 +117,7 @@ export default function ShareLinkScreen() {
           </Text>
           <View style={styles.copyRow}>
             <Text variant='body' style={styles.codeText}>
-              {linkData.productCode}
+              {truncateString(linkData.productCode, 10)}
             </Text>
             <TouchableOpacity onPress={() => handleCopy(linkData.productCode, 'code')} style={styles.copyButton}>
               <Copy size={20} color={theme.colors.primary} />

@@ -1,8 +1,9 @@
 // src/app/(tabs)/index.tsx
 import { useCustomersStore } from '@/store/customers.store';
+import { useTransactionsStore } from '@/store/transactions.store';
 import { useRouter } from 'expo-router';
 import { Bell, CheckCircle, CircleQuestionMark, Clock4, Inbox, Plus, Share2, ShieldCheck } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, Image, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { Extrapolate, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Text } from '../../components/typography/Text';
@@ -30,37 +31,10 @@ interface BalanceCard {
   color: string;
 }
 
-// const balanceCards: BalanceCard[] = [
-//   {
-//     id: '1',
-//     title: 'Available to Withdraw',
-//     amount: '$2,450.00',
-//     subtitle: 'Withdraw funds →',
-//     icon: <Wallet size={24} color={theme.colors.primary} />,
-//     color: theme.colors.primary,
-//   },
-//   {
-//     id: '2',
-//     title: 'Securely in Ethereum',
-//     amount: '$1,200',
-//     subtitle: 'Awaiting delivery',
-//     icon: <ArrowUpRight size={24} color='#10B981' />,
-//     color: '#10B981',
-//   },
-//   {
-//     id: '3',
-//     title: 'Total Earnings',
-//     amount: '$3,650',
-//     subtitle: 'All time',
-//     icon: <Wallet size={24} color='#8B5CF6' />,
-//     color: '#8B5CF6',
-//   },
-// ];
-
 const statusFilters = ['All', 'Awaiting Pay', 'In Escrow', 'Completed'];
 
 // Create a separate component for the balance card
-const BalanceCardItem: React.FC<{ item: BalanceCard; index: number; scrollX: any }> = ({ item, index, scrollX }) => {
+const BalanceCardItem: React.FC<{ item: BalanceCard; index: number; scrollX: any; onPress: () => void }> = ({ item, index, scrollX, onPress }) => {
   const inputRange = [(index - 1) * (CARD_WIDTH + CARD_SPACING), index * (CARD_WIDTH + CARD_SPACING), (index + 1) * (CARD_WIDTH + CARD_SPACING)];
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -74,16 +48,16 @@ const BalanceCardItem: React.FC<{ item: BalanceCard; index: number; scrollX: any
 
   return (
     <Animated.View style={[styles.card, animatedStyle, { borderColor: item.color }]}>
-      <View style={styles.cardHeader}>
-        <Text variant='body' color={theme.colors.text.secondary} style={styles.cardTitle}>
-          {item.title}
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+        <View style={styles.cardHeader}>
+          <Text variant='body' color={theme.colors.text.secondary} style={styles.cardTitle}>
+            {item.title}
+          </Text>
+          <View style={[styles.cardIcon, { backgroundColor: `${item.color}15` }]}>{item.icon}</View>
+        </View>
+        <Text variant='h1' style={styles.cardAmount}>
+          {item.amount}
         </Text>
-        <View style={[styles.cardIcon, { backgroundColor: `${item.color}15` }]}>{item.icon}</View>
-      </View>
-      <Text variant='h1' style={styles.cardAmount}>
-        {item.amount}
-      </Text>
-      <TouchableOpacity>
         <Text variant='body' color={theme.colors.primary} style={styles.cardSubtitle}>
           {item.subtitle}
         </Text>
@@ -99,6 +73,7 @@ export default function HomeScreen() {
   const { user } = useAuthStore();
   const { products, fetchProducts, loadMoreProducts, isLoading, hasNextPage } = useProductsStore();
   const { userBalance, isLoading: balLoad, balanceCards } = useCustomersStore();
+  const { fetchTransactions } = useTransactionsStore();
   const [activeFilter, setActiveFilter] = useState('All');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -140,7 +115,16 @@ export default function HomeScreen() {
     }
   };
 
-  const renderBalanceCard = ({ item, index }: { item: BalanceCard; index: number }) => <BalanceCardItem item={item} index={index} scrollX={scrollX} />;
+  const handleBalanceCardPress = useCallback(async () => {
+    try {
+      await fetchTransactions();
+      router.push('/(wallet)/recent-transactions');
+    } catch (error) {
+      console.error('Error navigating to transactions:', error);
+    }
+  }, [fetchTransactions]);
+
+  const renderBalanceCard = ({ item, index }: { item: BalanceCard; index: number }) => <BalanceCardItem item={item} index={index} scrollX={scrollX} onPress={handleBalanceCardPress} />;
 
   const renderActionButton = (icon: React.ReactNode, title: string, onPress: () => void) => (
     <TouchableOpacity style={styles.actionButton} onPress={onPress}>
@@ -173,7 +157,7 @@ export default function HomeScreen() {
       case 'completed':
         return 'COMPLETED';
       default:
-        return status;
+        return status.toUpperCase();
     }
   };
 
@@ -213,7 +197,7 @@ export default function HomeScreen() {
       </View>
     </TouchableOpacity>
   );
-
+console.log(products, 'products');
   return (
     <Screen style={styles.container}>
       <ScrollView

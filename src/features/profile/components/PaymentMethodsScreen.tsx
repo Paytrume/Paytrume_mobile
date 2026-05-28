@@ -1,5 +1,6 @@
 import { usePayout } from '@/hooks/use-payout';
 import { theme } from '@/theme';
+import { truncateString } from '../../../utils/string';
 import { Plus, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -45,14 +46,19 @@ export const PaymentMethodsScreen: React.FC = () => {
     return `**** ${last4}`;
   };
 
+  console.log(payoutDestinations);
+
   const renderBankItem = ({ item, index }: { item: any; index: number }) => (
     <View style={[styles.bankCard, index === 0 && styles.primaryCard]}>
       <View style={styles.bankInfo}>
         <Text variant='body' style={styles.bankName}>
-          {item.account_name || 'Bank Account'}
+          {truncateString(item.acct_name, 17)}
         </Text>
         <Text variant='small' color={theme.colors.text.tertiary} style={styles.accountNumber}>
-          {maskAccountNumber(item.account_number)}
+          {maskAccountNumber(`${item.acct_num}`)}
+        </Text>
+        <Text variant='small' color={theme.colors.text.tertiary} style={styles.accountNumber}>
+          {item.bank_name}
         </Text>
       </View>
       <View style={styles.cardActions}>
