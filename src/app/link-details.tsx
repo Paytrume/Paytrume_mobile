@@ -1,15 +1,16 @@
 import ImageSkeleton from '@/components/ui/ImageSkeleton';
+import { confirmProduct, resendPaymentLink, shipProduct } from '@/services/api';
 import { useAuthStore } from '@/store/auth.store';
 import { useProductsStore } from '@/store/products.store';
+import { formatDateTime2 } from '@/utils/string';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, CircleCheck, Copy, Mail, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Text } from '../components/typography/Text';
 import { Button } from '../components/ui/Button';
 import { theme } from '../theme';
-import { formatDateTime, formatDateTime2 } from '@/utils/string';
 
 // image mocks
 
@@ -25,6 +26,9 @@ export default function LinkDetailsScreen() {
   const [showTrackModal, setShowTrackModal] = useState(false);
   const [imgLoading, setImgLoading] = useState(true);
   const [loadingStates, setLoadingStates] = useState<{ [key: number]: boolean }>({});
+  const [confirmationCode, setConfirmationCode] = useState('');
+  const [isShippingProduct, setIsShippingProduct] = useState(false);
+  const [isConfirmingProduct, setIsConfirmingProduct] = useState(false);
 
   const handleCopy = async (text: string, type: 'link' | 'code') => {
     await Clipboard.setStringAsync(text);
@@ -48,7 +52,7 @@ export default function LinkDetailsScreen() {
             // API call to delete link
             await removeProduct(parsedLink._id);
             Alert.alert('Deleted', 'Link has been deleted');
-          } catch (error) {
+          } catch {
             Alert.alert('Error', 'Failed to delete product');
           }
         },
@@ -56,8 +60,14 @@ export default function LinkDetailsScreen() {
     ]);
   };
 
-  const handleResendLink = () => {
-    setShowResendLinkModal(true);
+  const handleResendLink = async () => {
+    try {
+      await resendPaymentLink(parsedLink._id);
+      setShowResendLinkModal(true);
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to resend payment link';
+      Alert.alert('Error', errorMessage);
+    }
   };
 
   const handleCloseResendLink = () => {
@@ -69,7 +79,40 @@ export default function LinkDetailsScreen() {
   };
 
   const handleCloseTrack = () => {
-    setShowTrackModal(true);
+    setShowTrackModal(false);
+  };
+
+  const handleShipProduct = async () => {
+    setIsShippingProduct(true);
+    try {
+      await shipProduct(parsedLink._id);
+      Alert.alert('Success', 'Product shipped successfully!');
+      setShowTrackModal(false);
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to ship product';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsShippingProduct(false);
+    }
+  };
+
+  const handleConfirmProduct = async () => {
+    if (!confirmationCode.trim()) {
+      Alert.alert('Error', 'Please enter the confirmation code');
+      return;
+    }
+    setIsConfirmingProduct(true);
+    try {
+      await confirmProduct(parsedLink._id, { confirmation_code: confirmationCode });
+      Alert.alert('Success', 'Product confirmed successfully!');
+      setConfirmationCode('');
+      setShowTrackModal(false);
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to confirm product';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsConfirmingProduct(false);
+    }
   };
 
   const renderSuccessResendLinkModal = () => (
@@ -83,60 +126,115 @@ export default function LinkDetailsScreen() {
             Product link sent!
           </Text>
           <Text variant='body' color={theme.colors.text.secondary} style={styles.resendMessage}>
-            Your payment link has been sent to `${parsedLink.buyer_email}`
+            Your payment link has been sent to {parsedLink.buyer_email}
           </Text>
         </View>
       </Pressable>
     </Modal>
   );
 
-  const renderTrackDeliveryModal = () => (
-    <Modal visible={showTrackModal} transparent animationType='slide' onRequestClose={handleCloseTrack}>
-      <Pressable style={styles.modalOverlay} onPress={handleCloseTrack}>
-        <View style={styles.resendModal}>
-          <Text variant='h2' style={styles.resendTitle}>
-            Track delivery of product
-          </Text>
-          <View style={styles.trackList}>
-            <Text variant='small' color={theme.colors.text.secondary} style={styles.resendMessage}>
-              Product link created and shared
-            </Text>
-            <Text variant='small' style={styles.resendMessage}>
-              COMPLETE
-            </Text>
+  const renderTrackDeliveryModal = () => {
+    const isSellerView = isSeller(parsedLink.seller_email);
+
+    // Define track stages with their completion logic
+    const trackStages = [
+      {
+        id: 'created',
+        label: 'Product link created and shared',
+        isComplete: true, // Always complete on initial state
+      },
+      {
+        id: 'paid',
+        label: 'Payment received',
+        isComplete: parsedLink.customer_paid?.status === true,
+      },
+      {
+        id: 'shipped',
+        label: 'Awaiting Shipment',
+        isComplete: parsedLink.delivered?.status === true,
+        isActionStage: parsedLink.customer_paid?.status === true && !parsedLink.delivered?.status,
+        showButton: isSellerView && parsedLink.customer_paid?.status === true && !parsedLink.delivered?.status,
+      },
+      {
+        id: 'confirmed',
+        label: 'Awaiting Confirmation',
+        isComplete: parsedLink.confirmed_recieved?.status === true,
+        isActionStage: parsedLink.delivered?.status === true && !parsedLink.confirmed_recieved?.status,
+        showButton: !isSellerView && parsedLink.delivered?.status === true && !parsedLink.confirmed_recieved?.status,
+      },
+      {
+        id: 'completed',
+        label: 'Funds Released',
+        isComplete: parsedLink.funds_released?.status === true,
+      },
+    ];
+
+    return (
+      <Modal visible={showTrackModal} transparent animationType='slide' onRequestClose={handleCloseTrack}>
+        <Pressable style={styles.modalOverlay} onPress={handleCloseTrack}>
+          <View style={[styles.resendModal, { maxHeight: '85%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text variant='h2' style={styles.resendTitle}>
+                Track delivery of product
+              </Text>
+
+              {trackStages.map((stage, index) => (
+                <View key={stage.id}>
+                  <View style={styles.trackList}>
+                    <View style={styles.trackContent}>
+                      <Text variant='small' color={stage.isComplete ? theme.colors.primary : theme.colors.text.secondary} style={styles.resendMessage}>
+                        {stage.label}
+                      </Text>
+                      {stage.isComplete && (
+                        <View style={[styles.statusPill, { backgroundColor: `${theme.colors.state.success}15` }]}>
+                          <Text variant='small' color={theme.colors.state.success} style={styles.pillText}>
+                            COMPLETE
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Show ship product button */}
+                  {stage.showButton && stage.id === 'shipped' && (
+                    <View style={styles.actionContainer}>
+                      <Button title={isShippingProduct ? 'Shipping...' : 'Ship Product'} onPress={handleShipProduct} disabled={isShippingProduct} style={styles.actionButton} />
+                    </View>
+                  )}
+
+                  {/* Show confirmation input and button */}
+                  {stage.showButton && stage.id === 'confirmed' && (
+                    <View style={styles.actionContainer}>
+                      <View style={styles.confirmationInputContainer}>
+                        <TextInput
+                          style={styles.confirmationInput}
+                          placeholder='Enter confirmation code'
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          value={confirmationCode}
+                          onChangeText={setConfirmationCode}
+                          editable={!isConfirmingProduct}
+                        />
+                      </View>
+                      <Button title={isConfirmingProduct ? 'Confirming...' : 'Confirm Receipt'} onPress={handleConfirmProduct} disabled={isConfirmingProduct} style={styles.actionButton} />
+                    </View>
+                  )}
+
+                  {/* Divider between stages */}
+                  {index < trackStages.length - 1 && <View style={styles.stageDivider} />}
+                </View>
+              ))}
+
+              <View style={styles.trackModalPadding} />
+            </ScrollView>
           </View>
-          <View style={styles.trackList}>
-            <Text variant='small' color={theme.colors.text.secondary} style={styles.resendMessage}>
-              Picked up by courier
-            </Text>
-            <Text variant='small' style={styles.resendMessage}>
-              COMPLETE
-            </Text>
-          </View>
-          <View style={styles.trackList}>
-            <Text variant='small' color={theme.colors.text.secondary} style={styles.resendMessage}>
-              In transit to destination
-            </Text>
-            <Text variant='small' style={styles.resendMessage}>
-              COMPLETE
-            </Text>
-          </View>
-          <View style={styles.trackList}>
-            <Text variant='small' color={theme.colors.text.secondary} style={styles.resendMessage}>
-              Product Delivered
-            </Text>
-            <Text variant='small' style={styles.resendMessage}>
-              COMPLETE
-            </Text>
-          </View>
-        </View>
-      </Pressable>
-    </Modal>
-  );
+        </Pressable>
+      </Modal>
+    );
+  };
 
   useEffect(() => {
     console.log(parsedLink);
-  }, []);
+  }, [parsedLink]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -275,7 +373,7 @@ export default function LinkDetailsScreen() {
 
       {/* Done Button - Fixed at bottom */}
       <View style={styles.footer}>
-        <Button title='Resend link' onPress={handleResendLink} textColor={theme.colors.primary} style={styles.resend} icon={Mail} />
+        {isSeller(parsedLink.seller_email) && <Button title='Resend link' onPress={handleResendLink} textColor={theme.colors.primary} style={styles.resend} icon={Mail} />}
         <Button title='Track delivery' onPress={handleTrack} style={styles.doneButton} />
       </View>
 
@@ -441,8 +539,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     // marginHorizontal: 24,
-    alignItems: 'center',
-    // width: '100%',
+    // alignItems: 'center',
+    width: '100%',
   },
   successIcon: {
     width: 80,
@@ -459,7 +557,6 @@ const styles = StyleSheet.create({
   },
   resendMessage: {
     textAlign: 'center',
-    marginBottom: 24,
     lineHeight: 20,
   },
   successIconContainer: {
@@ -478,9 +575,56 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    // alignItems: 'center',
     width: '100%',
     paddingTop: 20,
+    // paddingBottom: 20,
+  },
+  trackContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    paddingBottom: 10,
+    paddingTop: 10,
+  },
+  statusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  pillText: {
+    fontWeight: '600',
+    fontSize: 11,
+  },
+  actionContainer: {
+    marginTop: 12,
+    marginBottom: 16,
+    gap: 12,
+  },
+  actionButton: {
+    marginTop: 8,
+    marginBottom: 0,
+  },
+  confirmationInputContainer: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  confirmationInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: theme.colors.text.primary,
+    fontSize: 14,
+  },
+  stageDivider: {
+    height: 0,
+  },
+  trackModalPadding: {
+    height: 20,
   },
   sliderImage: {
     width: 300,
@@ -494,4 +638,4 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 10,
   },
-});
+}) as any;

@@ -1,4 +1,3 @@
-// src/app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { Link2, User, LayoutDashboard, Clock3 } from 'lucide-react-native';

@@ -38,11 +38,19 @@
         }
       ],
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ae4a8bbe-f7b0-48a3-88a1-75f1e6c7ea6c"
+      }
+    },
+    "owner": "ebby007"
   }
 }

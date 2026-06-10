@@ -1,8 +1,9 @@
 import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useAuthStore } from './src/store/auth.store';
-import { useRouter } from 'expo-router';
 
 // keep expo-router entry import to bootstrap routing
 import 'expo-router/entry';
@@ -32,12 +33,26 @@ export default function App() {
       }
     };
 
-    if(!token) {
+    if (!token) {
       router.replace('/(auth)/login');
     }
 
     initialize();
   }, [fontsLoaded, hydrate, token]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+
+      console.log(data);
+
+      // Navigate to screen
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   if (!fontsLoaded) {
     // while loading keep showing the splash screen

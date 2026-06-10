@@ -1,5 +1,6 @@
 // src/app/(tabs)/index.tsx
 import { useCustomersStore } from '@/store/customers.store';
+import { useNotificationsStore } from '@/store/notifications.store';
 import { useTransactionsStore } from '@/store/transactions.store';
 import { useRouter } from 'expo-router';
 import { Bell, CheckCircle, CircleQuestionMark, Clock4, Inbox, Plus, Share2, ShieldCheck } from 'lucide-react-native';
@@ -10,11 +11,13 @@ import { Text } from '../../components/typography/Text';
 import { Screen } from '../../components/ui/Screen';
 import SkeletonCard from '../../components/ui/SkeletonCard';
 import SkeletonListItem from '../../components/ui/SkeletonListItem';
+import { registerForPushNotifications } from '../../services/notification';
 import { useAuthStore } from '../../store/auth.store';
 import { useProductsStore } from '../../store/products.store';
 import { theme } from '../../theme';
 
 //images
+import { registerDevice } from '@/services/api';
 import empty from '../../../assets/images/empty.png';
 
 const { width } = Dimensions.get('window');
@@ -66,6 +69,37 @@ const BalanceCardItem: React.FC<{ item: BalanceCard; index: number; scrollX: any
   );
 };
 
+const NotificationBell = () => {
+  const router = useRouter();
+
+  const unreadCount = useNotificationsStore((state) => state.unreadCount);
+
+  return (
+    <TouchableOpacity
+      onPress={() => router.push('/notifications')}
+      style={{
+        padding: 8,
+      }}
+    >
+      <Bell size={24} />
+
+      {unreadCount > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            right: 5,
+            top: 5,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: theme.colors.primary,
+          }}
+        />
+      )}
+    </TouchableOpacity>
+  );
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const scrollX = useSharedValue(0);
@@ -74,6 +108,7 @@ export default function HomeScreen() {
   const { products, fetchProducts, loadMoreProducts, isLoading, hasNextPage } = useProductsStore();
   const { userBalance, isLoading: balLoad, balanceCards } = useCustomersStore();
   const { fetchTransactions } = useTransactionsStore();
+  const { fetchUnreadNotifications } = useNotificationsStore();
   const [activeFilter, setActiveFilter] = useState('All');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -83,6 +118,8 @@ export default function HomeScreen() {
     const loadData = async () => {
       await fetchProducts(0);
       await userBalance();
+      await registerToken();
+      await fetchUnreadNotifications();
       setInitialLoad(false);
     };
     loadData();
@@ -97,6 +134,15 @@ export default function HomeScreen() {
       setIsRefreshing(false);
     }
   };
+
+  async function registerToken() {
+    try {
+      const token = await registerForPushNotifications();
+      await registerDevice({ expoPushToken: token });
+    } catch (err) {
+      console.log(err);
+    }
+  }
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -197,7 +243,7 @@ export default function HomeScreen() {
       </View>
     </TouchableOpacity>
   );
-console.log(products, 'products');
+  console.log(products, 'products');
   return (
     <Screen style={styles.container}>
       <ScrollView
@@ -215,9 +261,7 @@ console.log(products, 'products');
               {user?.includes('undefined') ? 'Buddy 😁' : user}
             </Text>
           </View>
-          <TouchableOpacity style={styles.searchButton}>
-            <Bell size={24} color={theme.colors.text.secondary} />
-          </TouchableOpacity>
+          <NotificationBell />
         </View>
 
         {/* Balance Cards Carousel */}

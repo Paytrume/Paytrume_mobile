@@ -2,7 +2,7 @@ import axios from 'axios';
 import { removeStorageItems } from '../utils/storage';
 import { setupApiLogger } from './logger';
 
-const BASE_URL = 'https://t2sg84b0-3005.uks1.devtunnels.ms';
+const BASE_URL = 'https://paytrume-backend.onrender.com';
 const TOKEN_KEY = 'paytrume.auth_token';
 const USER_KEY = 'paytrume.auth_user';
 const PROFILE_KEY = 'paytrume.auth_profile';
@@ -492,6 +492,75 @@ export const getKycDocuments = async () => {
 export const updateKycDocuments = async (payload: { document_type: string; front_image_url: string; back_image_url: string; proof_of_address_url: string }) => {
   try {
     const response = await api.put('/kyc/update', payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const registerDevice = async (payload: { expoPushToken: string }) => {
+  try {
+    const response = await api.post('/notification/register-device', payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getNotifications = async (page = 1, limit = 20) => {
+  try {
+    const response = await api.get(`/notifications?page=${page}&limit=${limit}`);
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getUnreadNotifications = async (page = 1, limit = 20) => {
+  try {
+    const response = await api.get(`/notifications/unread?page=${page}&limit=${limit}`);
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const markNotificationRead = async (id: string) => {
+  try {
+    const response = await api.patch(`/notifications/${id}/read`);
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const shipProduct = async (id: string) => {
+  try {
+    const response = await api.put(`/shipped/${id}`);
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const confirmProduct = async (id: string, payload: { confirmation_code : string}) => {
+  try {
+    const response = await api.put(`/confirmation/${id}`, payload);
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const resendPaymentLink = async (id: string) => {
+  try {
+    const response = await api.post(`/products/${id}/resend-payment-email`);
+
     return response.data;
   } catch (error) {
     throw error;
