@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, TouchableOpaci
 import { Text } from '../../../components/typography/Text';
 import { useAuthStore } from '../../../store/auth.store';
 import { theme } from '../../../theme';
+import { uploadImageToCloudinary } from '../../../utils/cloudinary';
 import { UserProfile } from '../profile.types';
 
 export const ProfileScreen: React.FC = () => {
@@ -33,9 +34,12 @@ export const ProfileScreen: React.FC = () => {
   // Update profile when seller profile data is available
   useEffect(() => {
     if (sellerProfile) {
+      const firstName = sellerProfile.first_name || '';
+      const lastName = sellerProfile.last_name || '';
+      const fullName = firstName && lastName ? `${firstName} ${lastName}` : 'User';
       const updatedProfile: UserProfile = {
         id: sellerProfile._id,
-        fullName: `${sellerProfile.first_name} ${sellerProfile.last_name}`,
+        fullName: fullName,
         email: sellerProfile.email,
         phoneNumber: sellerProfile.mobile,
         avatar: sellerProfile.avatar || '',
@@ -49,8 +53,14 @@ export const ProfileScreen: React.FC = () => {
           postalCode: '',
         },
       };
-      setProfile(updatedProfile);
-      console.log('Profile updated from API data:', updatedProfile);
+
+      // Only update if profile actually changed
+      setProfile((prevProfile) => {
+        if (JSON.stringify(prevProfile) === JSON.stringify(updatedProfile)) {
+          return prevProfile;
+        }
+        return updatedProfile;
+      });
     }
   }, [sellerProfile]);
 
@@ -90,7 +100,7 @@ export const ProfileScreen: React.FC = () => {
     setIsUploadingAvatar(true);
     try {
       const options = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -100,17 +110,25 @@ export const ProfileScreen: React.FC = () => {
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;
+        console.log('Selected image URI:', selectedUri);
 
-        // Update local profile state
-        setProfile((prev) => ({ ...prev, avatar: selectedUri }));
+        // Upload to Cloudinary first
+        console.log('Uploading to Cloudinary...');
+        const cloudinaryUrl = await uploadImageToCloudinary(selectedUri);
+        console.log('Cloudinary URL:', cloudinaryUrl);
 
-        // Upload to API
-        await updateProfile({ avatar: selectedUri });
+        // Update local profile state with Cloudinary URL
+        setProfile((prev) => ({ ...prev, avatar: cloudinaryUrl }));
+
+        // Upload to API with Cloudinary URL
+        console.log('Updating profile with Cloudinary URL...');
+        await updateProfile({ avatar: cloudinaryUrl });
         Alert.alert('Success', 'Profile picture updated successfully!');
       }
     } catch (error) {
       console.error('Image picking error:', error);
-      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload image';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsUploadingAvatar(false);
     }

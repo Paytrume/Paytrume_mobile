@@ -1,4 +1,5 @@
 // src/features/links/useCreateLink.ts
+import { useProductsStore } from '@/store/products.store';
 import { isAxiosError } from 'axios';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -6,7 +7,6 @@ import { Alert } from 'react-native';
 import { createProduct } from '../../services/api';
 import { uploadImageToCloudinary } from '../../utils/cloudinary';
 import { CreateLinkFormData } from './links.types';
-import { useProductsStore } from '@/store/products.store';
 
 export const useCreateLink = () => {
   const router = useRouter();
@@ -14,7 +14,6 @@ export const useCreateLink = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { fetchProducts } = useProductsStore();
-
 
   const createLink = async (data: CreateLinkFormData) => {
     setIsLoading(true);
@@ -26,14 +25,21 @@ export const useCreateLink = () => {
 
       // Upload image to Cloudinary if provided
       if (data.coverPhoto) {
+        console.log('📸 Starting image upload process...');
+        console.log('📸 Image URI:', data.coverPhoto);
+
         try {
+          console.log('☁️ Uploading to Cloudinary...');
           imageUrl = await uploadImageToCloudinary(data.coverPhoto, (progress) => {
+            console.log(`📊 Cloudinary upload progress: ${progress}%`);
             setUploadProgress(progress);
           });
+          console.log('✅ Cloudinary upload successful! URL:', imageUrl);
         } catch (uploadErr) {
-          console.error('Image upload failed:', uploadErr);
-          setError('Failed to upload image. Please try again.');
-          Alert.alert('Image Upload Failed', 'Failed to upload image. Please try again.');
+          console.error('❌ Cloudinary upload failed:', uploadErr);
+          const errorMessage = uploadErr instanceof Error ? uploadErr.message : 'Failed to upload image. Please try again.';
+          setError(errorMessage);
+          Alert.alert('Image Upload Failed', errorMessage);
           setIsLoading(false);
           return false;
         }
@@ -55,19 +61,42 @@ export const useCreateLink = () => {
         }),
       };
 
+      console.log('📤 Sending product data to API:', {
+        product_name: productData.product_name,
+        product_price: productData.product_price,
+        type: productData.type,
+        product_images: productData.product_images?.substring(0, 50) + '...',
+      });
+
       const response = await createProduct(productData);
+
+      console.log('✅ API response:', response);
 
       if (response.success) {
         Alert.alert('Link Created', 'Your secure payment link has been created and sent to the customer.', [{ text: 'OK', onPress: () => router.back() }]);
         fetchProducts(0);
         return true;
       } else {
-        setError(response.message || 'Failed to create link. Please try again.');
-        Alert.alert('Error', response.message || 'Failed to create link. Please try again.');
+        const errorMsg = response.message || 'Failed to create link. Please try again.';
+        setError(errorMsg);
+        Alert.alert('Error', errorMsg);
         return false;
       }
     } catch (err) {
-      const errorMessage = isAxiosError(err) ? err.response?.data?.message || err.message : err instanceof Error ? err.message : 'Failed to create link. Please try again.';
+      console.error('❌ Create link error:', err);
+
+      let errorMessage = 'Failed to create link. Please try again.';
+
+      if (isAxiosError(err)) {
+        console.error('❌ API Error details:', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+        });
+        errorMessage = err.response?.data?.message || err.message || errorMessage;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
 
       setError(errorMessage);
       Alert.alert('Error', errorMessage);

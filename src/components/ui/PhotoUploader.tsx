@@ -47,30 +47,36 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({ onImageSelected, o
     setIsLoading(true);
     try {
       const options = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images' as const,
         allowsEditing: true,
         quality: 1,
       };
 
+      console.log('📸 Launching image picker with options:', options);
       const result = useCamera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
-      console.log('ImagePicker result:', result);
+
+      console.log('📸 ImagePicker result:', {
+        canceled: result.canceled,
+        assetCount: result.assets?.length || 0,
+        firstAssetUri: result.assets?.[0]?.uri,
+      });
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;
+        console.log('✅ Selected image URI:', selectedUri);
+        console.log('✅ URI starts with file://', selectedUri.startsWith('file://'));
 
-        // Check if it's a local file and we need to check size
-        if (selectedUri.startsWith('file://')) {
-          // In a real app, you'd check file size here
-          // For now, we'll assume it's valid
-          setImage(selectedUri);
-          onImageSelected?.(selectedUri);
-        } else {
-          setImage(selectedUri);
-          onImageSelected?.(selectedUri);
-        }
+        // Store and pass local URI to parent - parent will handle Cloudinary upload
+        setImage(selectedUri);
+        onImageSelected?.(selectedUri);
+        console.log('✅ Image URI passed to parent component');
+      } else {
+        console.warn('⚠️ Image picker was canceled');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to select image. Please try again.');
+      console.error('❌ Image picker error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to select image';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }

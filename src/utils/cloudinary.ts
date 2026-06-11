@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { File } from 'expo-file-system';
-import { Alert } from 'react-native';
 
 // Cloudinary configuration
 const CLOUD_NAME = 'ifezulike';
@@ -27,46 +25,69 @@ export const uploadImageToCloudinary = async (imageUri: string, onProgress?: (pr
       throw new Error('No image URI provided');
     }
 
-    // Read file as base64
-    const file = new File(imageUri);
-    const base64Data = await file.base64();
+    console.log('🔧 Starting Cloudinary upload with URI:', imageUri);
 
     // Determine file type from URI
     const fileType = imageUri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
+    const fileName = imageUri.split('/').pop() || 'upload.jpg';
 
-    // Create FormData
+    // Create FormData - correct way for React Native
     const formData = new FormData();
 
     formData.append('file', {
       uri: imageUri,
-      type: imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg',
-      name: 'upload.jpg',
+      type: fileType,
+      name: fileName,
     } as any);
 
     formData.append('upload_preset', UPLOAD_PRESET);
+    formData.append('cloud_name', CLOUD_NAME);
+
+    console.log('📤 FormData created, uploading to Cloudinary...');
 
     // Upload to Cloudinary
     const response = await axios.post<CloudinaryUploadResponse>(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.total) {
           const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+          console.log(`📊 Upload progress: ${progress}%`);
           onProgress(progress);
         }
       },
     });
 
-    console.log('Cloudinary response:', response.data);
+    console.log('✅ Cloudinary response received:', {
+      public_id: response.data.public_id,
+      secure_url: response.data.secure_url?.substring(0, 50) + '...',
+    });
 
     if (response.data.secure_url) {
+      console.log('✅ Upload successful!');
       return response.data.secure_url;
     } else {
-      throw new Error('No secure_url in response');
+      throw new Error('No secure_url in response from Cloudinary');
     }
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to upload image';
-    Alert.alert('Upload Error', errorMessage);
-    throw error;
+    console.error('❌ Cloudinary upload error:', error);
+
+    let errorMessage = 'Failed to upload image to Cloudinary';
+
+    if (axios.isAxiosError(error)) {
+      console.error('❌ Axios error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      errorMessage = error.response?.data?.error?.message || error.message || errorMessage;
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
+    console.error('❌ Final error message:', errorMessage);
+    throw new Error(errorMessage);
   }
 };
 
