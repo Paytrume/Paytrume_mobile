@@ -14,22 +14,7 @@ export const ProfileScreen: React.FC = () => {
   const { profile: sellerProfile, logout, updateProfile } = useAuthStore();
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  const [profile, setProfile] = useState<UserProfile>({
-    id: '1',
-    fullName: 'Alex Palmer',
-    email: 'Alex.palmer@gmail.com',
-    phoneNumber: '08166388263',
-    avatar: undefined,
-    isVerified: true,
-    kycStatus: 'verified',
-    address: {
-      country: 'Nigeria',
-      streetAddress: '',
-      state: '',
-      city: '',
-      postalCode: '',
-    },
-  });
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   // Update profile when seller profile data is available
   useEffect(() => {
@@ -42,25 +27,19 @@ export const ProfileScreen: React.FC = () => {
         fullName: fullName,
         email: sellerProfile.email,
         phoneNumber: sellerProfile.mobile,
-        avatar: sellerProfile.avatar || '',
+        avatar: sellerProfile.avatar || undefined,
         isVerified: sellerProfile.verifyAccount,
         kycStatus: sellerProfile.verifyAccount ? 'verified' : 'pending',
         address: {
-          country: 'Nigeria',
-          streetAddress: '',
-          state: '',
-          city: '',
-          postalCode: '',
+          country: sellerProfile.address?.country || 'Nigeria',
+          streetAddress: sellerProfile.address?.streetAddress || '',
+          state: sellerProfile.address?.state || '',
+          city: sellerProfile.address?.city || '',
+          postalCode: sellerProfile.address?.postalCode || '',
         },
       };
 
-      // Only update if profile actually changed
-      setProfile((prevProfile) => {
-        if (JSON.stringify(prevProfile) === JSON.stringify(updatedProfile)) {
-          return prevProfile;
-        }
-        return updatedProfile;
-      });
+      setProfile(updatedProfile);
     }
   }, [sellerProfile]);
 
@@ -161,77 +140,93 @@ export const ProfileScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text variant='h2' style={styles.profile}>
-          Profile
-        </Text>
-        <View style={styles.avatarContainer}>
-          {isUploadingAvatar ? (
-            <View style={styles.avatarPlaceholder}>
-              <ActivityIndicator size='large' color={theme.colors.primary} />
+      {profile ? (
+        <>
+          <View style={styles.header}>
+            <Text variant='h2' style={styles.profile}>
+              Profile
+            </Text>
+            <View style={styles.avatarContainer}>
+              {isUploadingAvatar ? (
+                <View style={styles.avatarPlaceholder}>
+                  <ActivityIndicator size='large' color={theme.colors.primary} />
+                </View>
+              ) : profile.avatar ? (
+                <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <User size={50} color={theme.colors.primary} />
+                </View>
+              )}
+              <TouchableOpacity style={styles.editAvatar} onPress={handleEditAvatar} disabled={isUploadingAvatar}>
+                <Edit2 size={16} color={theme.colors.white} />
+              </TouchableOpacity>
             </View>
-          ) : profile.avatar ? (
-            <Image source={{ uri: profile.avatar }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <User size={50} color={theme.colors.primary} />
-            </View>
-          )}
-          <TouchableOpacity style={styles.editAvatar} onPress={handleEditAvatar} disabled={isUploadingAvatar}>
-            <Edit2 size={16} color={theme.colors.white} />
-          </TouchableOpacity>
+            <Text variant='h2' style={styles.userName}>
+              {profile.fullName}
+            </Text>
+            <Text variant='body' color={theme.colors.raw.white}>
+              {profile.email}
+            </Text>
+            {profile.isVerified ? (
+              <View style={styles.verifiedBadge}>
+                <CheckCircle size={16} color={theme.colors.state.success} />
+                <Text variant='small' color={theme.colors.state.success} style={styles.verifiedText}>
+                  VERIFIED
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.verifiedBadge}>
+                <MessageCircleWarning size={16} color={theme.colors.state.warning} />
+                <Text variant='small' color={theme.colors.state.warning} style={styles.verifiedText}>
+                  NOT VERIFIED
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Personal Information Section */}
+          <View style={styles.section}>
+            <Text variant='h2' style={styles.sectionTitle}>
+              Account
+            </Text>
+
+            {renderMenuItem(<User size={20} color={theme.colors.primary} />, 'Personal Information', 'Update your details and contact info', () => router.push('/(profile)/profile-edit'))}
+
+            {renderMenuItem(
+              <Shield size={20} color={theme.colors.primary} />,
+              'Verification',
+              profile.kycStatus === 'verified' ? 'Identity verified' : 'Complete KYC to unlock features',
+              handleVerifyKYC,
+            )}
+
+            {renderMenuItem(<Building2 size={20} color={theme.colors.primary} />, 'Business profile', 'Manage your service offerings', () => {})}
+          </View>
+
+          {/* Finance & Security Section */}
+          <View style={styles.section}>
+            <Text variant='h3' style={styles.sectionTitle}>
+              Finance & Security
+            </Text>
+
+            {renderMenuItem(<CreditCard size={20} color={theme.colors.primary} />, 'Payment Methods', 'Manage bank accounts for withdrawal', () => router.push('/(profile)/payment-methods'))}
+
+            {renderMenuItem(<Lock size={20} color={theme.colors.primary} />, 'Security Settings', 'Password, 2FA, and sessions', () => router.push('/(profile)/security-settings'))}
+          </View>
+
+          {/* Logout Button */}
+          <View style={styles.section}>{renderMenuItem(<LogOut size={20} color={theme.colors.primary} />, 'Logout', '', handleLogout)}</View>
+
+          <View style={styles.bottomPadding} />
+        </>
+      ) : (
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size='large' color={theme.colors.primary} />
+          <Text variant='body' color={theme.colors.text.secondary} style={{ marginTop: 16 }}>
+            Loading profile...
+          </Text>
         </View>
-        <Text variant='h2' style={styles.userName}>
-          {profile.fullName}
-        </Text>
-        <Text variant='body' color={theme.colors.raw.white}>
-          {profile.email}
-        </Text>
-        {profile.isVerified ? (
-          <View style={styles.verifiedBadge}>
-            <CheckCircle size={16} color={theme.colors.state.success} />
-            <Text variant='small' color={theme.colors.state.success} style={styles.verifiedText}>
-              VERIFIED
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.verifiedBadge}>
-            <MessageCircleWarning size={16} color={theme.colors.state.warning} />
-            <Text variant='small' color={theme.colors.state.warning} style={styles.verifiedText}>
-              NOT VERIFIED
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Personal Information Section */}
-      <View style={styles.section}>
-        <Text variant='h2' style={styles.sectionTitle}>
-          Account
-        </Text>
-
-        {renderMenuItem(<User size={20} color={theme.colors.primary} />, 'Personal Information', 'Update your details and contact info', () => router.push('/(profile)/profile-edit'))}
-
-        {renderMenuItem(<Shield size={20} color={theme.colors.primary} />, 'Verification', profile.kycStatus === 'verified' ? 'Identity verified' : 'Complete KYC to unlock features', handleVerifyKYC)}
-
-        {renderMenuItem(<Building2 size={20} color={theme.colors.primary} />, 'Business profile', 'Manage your service offerings', () => {})}
-      </View>
-
-      {/* Finance & Security Section */}
-      <View style={styles.section}>
-        <Text variant='h3' style={styles.sectionTitle}>
-          Finance & Security
-        </Text>
-
-        {renderMenuItem(<CreditCard size={20} color={theme.colors.primary} />, 'Payment Methods', 'Manage bank accounts for withdrawal', () => router.push('/(profile)/payment-methods'))}
-
-        {renderMenuItem(<Lock size={20} color={theme.colors.primary} />, 'Security Settings', 'Password, 2FA, and sessions', () => router.push('/(profile)/security-settings'))}
-      </View>
-
-      {/* Logout Button */}
-      <View style={styles.section}>{renderMenuItem(<LogOut size={20} color={theme.colors.primary} />, 'Logout', '', handleLogout)}</View>
-
-      <View style={styles.bottomPadding} />
+      )}
     </ScrollView>
   );
 };

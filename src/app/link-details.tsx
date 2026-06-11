@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   bottomPadding: {
-    height: 40,
+    height: 60,
   },
   imageContainer: {
     marginBottom: 24,

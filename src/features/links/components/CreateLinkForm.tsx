@@ -117,6 +117,13 @@ export const CreateLinkForm: React.FC = () => {
         </Text>
 
         <View style={styles.form}>
+          <View style={styles.photoSection}>
+            <Text variant='body' style={styles.photoLabel}>
+              Cover Photo
+            </Text>
+            <Controller control={control} name='coverPhoto' render={({ field: { onChange } }) => <PhotoUploader onImageSelected={onChange} onImageRemoved={() => onChange(undefined)} />} />
+          </View>
+          
           <Controller
             control={control}
             name='name'
@@ -223,13 +230,6 @@ export const CreateLinkForm: React.FC = () => {
               </View>
             )}
           />
-
-          <View style={styles.photoSection}>
-            <Text variant='body' style={styles.photoLabel}>
-              Cover Photo
-            </Text>
-            <Controller control={control} name='coverPhoto' render={({ field: { onChange } }) => <PhotoUploader onImageSelected={onChange} onImageRemoved={() => onChange(undefined)} />} />
-          </View>
 
           <View style={styles.infoBox}>
             <Text variant='body' style={styles.infoTitle}>
