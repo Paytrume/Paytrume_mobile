@@ -2,8 +2,8 @@ import axios from 'axios';
 import { removeStorageItems } from '../utils/storage';
 import { setupApiLogger } from './logger';
 
-// const BASE_URL = 'https://paytrume-backend.onrender.com';
-const BASE_URL = 'https://t2sg84b0-3005.uks1.devtunnels.ms';
+const BASE_URL = 'https://paytrume-backend.onrender.com';
+// const BASE_URL = 'https://t2sg84b0-3005.uks1.devtunnels.ms';
 const TOKEN_KEY = 'paytrume.auth_token';
 const USER_KEY = 'paytrume.auth_user';
 const PROFILE_KEY = 'paytrume.auth_profile';
